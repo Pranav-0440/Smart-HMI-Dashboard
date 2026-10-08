@@ -8,7 +8,6 @@ import { wsService, apiPost } from "./services/websocket";
 import VehicleSelection from "./pages/VehicleSelection";
 import BikeDashboard from "./pages/BikeDashboard";
 import CarDashboard from "./pages/CarDashboard";
-import VoiceAssistant from "./components/VoiceAssistant";
 
 // Default state for initial render
 const DEFAULT_STATE: VehicleState = {
@@ -123,9 +122,11 @@ export default function App() {
     apiPost("/vehicle/reset", { soc: 80, ambientTemp: 25 }).catch(() => {});
   }, []);
 
-  // Connection status overlay
+  const [demoMode, setDemoMode] = useState(false);
+
+  // Connection status overlay / banner
   const ConnectionOverlay = () =>
-    !connected ? (
+    !connected && !demoMode ? (
       <div className="connection-overlay">
         <div className="connection-overlay__content">
           <div className="connection-overlay__spinner" />
@@ -133,6 +134,23 @@ export default function App() {
           <p className="connection-overlay__hint">
             Start the Python server: <code>cd digital-twin && python main.py</code>
           </p>
+          <button
+            className="vehicle-card__btn"
+            style={{
+              marginTop: "16px",
+              padding: "10px 20px",
+              borderRadius: "9999px",
+              background: "rgba(0, 229, 255, 0.15)",
+              border: "1px solid rgba(0, 229, 255, 0.4)",
+              color: "#00e5ff",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontFamily: "inherit",
+            }}
+            onClick={() => setDemoMode(true)}
+          >
+            🚀 Continue in Demo Mode
+          </button>
         </div>
       </div>
     ) : null;
@@ -166,17 +184,6 @@ export default function App() {
           onSlope={handleSlope}
           onAmbient={handleAmbient}
           onControl={handleControl}
-          onReset={handleReset}
-        />
-      )}
-      {page !== "selection" && (
-        <VoiceAssistant
-          state={state}
-          onControl={handleControl}
-          onMode={handleMode}
-          onThrottle={handleThrottle}
-          onBrake={handleBrake}
-          onSlope={handleSlope}
           onReset={handleReset}
         />
       )}

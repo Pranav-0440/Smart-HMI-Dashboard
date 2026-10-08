@@ -1,7 +1,9 @@
 /**
- * Voice Assistant Component
- * Floating interactive AI Voice Assistant for EV-HMI Dashboard.
- * Listens to driver voice commands and responds with voice audio and visual feedback.
+ * 3D AI Robot Voice Assistant Component
+ * Floating on the left side of the dashboard.
+ * When turned on, greets the driver verbally ("Hello! I'm your EV copilot, I'm listening..."),
+ * continuously listens for multiple voice commands without turning off automatically,
+ * and immediately executes requested vehicle actions.
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { VehicleState, DriveMode } from "../types/vehicle";
@@ -26,14 +28,15 @@ const SUGGESTIONS = [
   "Turn on left indicator",
   "Turn on headlights",
   "Switch to Sport mode",
+  "Turn on hazard lights",
   "What is my battery?",
   "What is my speed?",
-  "Turn on hazard lights",
   "Accelerate",
   "Slow down",
 ];
 
-// Browser SpeechRecognition interface declaration
+const GREETING_TEXT = "Hello! I am your EV copilot. I am listening, tell me what you want me to do!";
+
 type SpeechRecognitionType = any;
 
 export default function VoiceAssistant({
@@ -47,14 +50,17 @@ export default function VoiceAssistant({
 }: VoiceAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [assistantReply, setAssistantReply] = useState<string>(
-    "Hi! I'm your EV Copilot. Tap the mic and say a command like 'Turn on left indicator' or 'Switch to Sport mode'."
-  );
+  const [assistantReply, setAssistantReply] = useState<string>(GREETING_TEXT);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [hasSpeechRecognition, setHasSpeechRecognition] = useState(true);
 
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+  const keepListeningRef = useRef<boolean>(false);
+  const isSpeakingRef = useRef<boolean>(false);
+  const restartTimerRef = useRef<number | null>(null);
+  const clearTranscriptTimerRef = useRef<number | null>(null);
 
   const actions: VoiceAssistantActions = {
     onToggleControl: onControl,
@@ -64,6 +70,78 @@ export default function VoiceAssistant({
     onSetSlope: onSlope,
     onReset,
   };
+
+  // Safe restart recognition helper
+  const restartRecognition = useCallback(() => {
+    if (!keepListeningRef.current || !recognitionRef.current) return;
+    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+
+    restartTimerRef.current = window.setTimeout(() => {
+      if (!keepListeningRef.current || !recognitionRef.current || isSpeakingRef.current) return;
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err: any) {
+        // "already started" error is safe to ignore
+        if (err.name !== "InvalidStateError") {
+          console.debug("[VoiceAssistant] Restart attempt:", err);
+        }
+      }
+    }, 100);
+  }, []);
+
+  // Watchdog timer: guarantees continuous listening stays alive even across silent pauses or browser timeouts
+  useEffect(() => {
+    const watchdog = setInterval(() => {
+      if (keepListeningRef.current && !isSpeakingRef.current && recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+          setIsListening(true);
+        } catch {}
+      }
+    }, 800);
+
+    return () => clearInterval(watchdog);
+  }, []);
+
+  // Execute and process a command (from mic or suggestion click)
+  const handleExecuteCommand = useCallback(
+    (commandText: string) => {
+      // Avoid processing the assistant's own speech
+      if (isSpeakingRef.current) return;
+
+      setTranscript(`"${commandText}"`);
+      const result = processVoiceCommand(commandText, state, actions);
+      setAssistantReply(result.response);
+
+      // Speak confirmation
+      isSpeakingRef.current = true;
+      setIsSpeaking(true);
+      speakResponse(
+        result.response,
+        voiceEnabled,
+        () => {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          // Continue listening seamlessly
+          if (keepListeningRef.current) {
+            restartRecognition();
+          }
+        },
+        () => {
+          isSpeakingRef.current = true;
+          setIsSpeaking(true);
+        }
+      );
+
+      // Automatically reset user transcript bubble after 4 seconds to keep UI clean while listening
+      if (clearTranscriptTimerRef.current) clearTimeout(clearTranscriptTimerRef.current);
+      clearTranscriptTimerRef.current = window.setTimeout(() => {
+        setTranscript("");
+      }, 4000);
+    },
+    [state, voiceEnabled, restartRecognition]
+  );
 
   // Initialize Speech Recognition on Mount
   useEffect(() => {
@@ -80,89 +158,178 @@ export default function VoiceAssistant({
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
+    recognition.continuous = true; // Continuous listening: does not stop after a single sentence!
     recognition.interimResults = true;
     recognition.lang = "en-US";
 
     recognition.onstart = () => {
       setIsListening(true);
-      setTranscript("Listening...");
     };
 
     recognition.onresult = (event: any) => {
-      const current = event.resultIndex;
-      const text = event.results[current][0].transcript;
-      setTranscript(text);
+      if (isSpeakingRef.current) return;
 
-      if (event.results[current].isFinal) {
-        handleExecuteCommand(text);
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i];
+        if (item.isFinal) {
+          finalTranscript += item[0].transcript;
+        } else {
+          interimTranscript += item[0].transcript;
+        }
+      }
+
+      const activeText = finalTranscript || interimTranscript;
+      if (activeText.trim()) {
+        setTranscript(activeText);
+      }
+
+      if (finalTranscript.trim()) {
+        handleExecuteCommand(finalTranscript.trim());
       }
     };
 
     recognition.onerror = (event: any) => {
-      console.warn("[VoiceAssistant] Speech error:", event.error);
-      setIsListening(false);
+      if (event.error === "no-speech") {
+        // Normal silence timeout in continuous mode; auto-restart if we want to keep listening
+        if (keepListeningRef.current) {
+          restartRecognition();
+        }
+        return;
+      }
+
       if (event.error === "not-allowed") {
-        setAssistantReply("Microphone access was denied. Please allow microphone permissions in your browser.");
-      } else if (event.error !== "no-speech") {
-        setAssistantReply(`Voice recognition notice: ${event.error}. You can also tap any suggestion chip below.`);
+        keepListeningRef.current = false;
+        setIsListening(false);
+        setAssistantReply("Microphone access denied. Please allow microphone permission in your browser.");
+        return;
+      }
+
+      console.warn("[VoiceAssistant] Speech error:", event.error);
+      if (keepListeningRef.current) {
+        restartRecognition();
       }
     };
 
     recognition.onend = () => {
-      setIsListening(false);
+      // If user enabled assistant, keep listening continuously!
+      if (keepListeningRef.current) {
+        restartRecognition();
+      } else {
+        setIsListening(false);
+      }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
-      recognition.abort();
+      keepListeningRef.current = false;
+      if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      if (clearTranscriptTimerRef.current) clearTimeout(clearTranscriptTimerRef.current);
+      try {
+        recognition.abort();
+      } catch {}
     };
-  }, []);
+  }, [handleExecuteCommand, restartRecognition]);
 
-  // Execute and process a command (from mic or suggestion click)
-  const handleExecuteCommand = useCallback(
-    (commandText: string) => {
-      setTranscript(`"${commandText}"`);
-      const result = processVoiceCommand(commandText, state, actions);
-      setAssistantReply(result.response);
-      speakResponse(result.response, voiceEnabled);
-    },
-    [state, voiceEnabled]
-  );
 
-  // Toggle listening
-  const toggleListening = () => {
-    if (!hasSpeechRecognition) {
-      setAssistantReply("Speech recognition is not supported in this browser. You can tap any suggestion chip below to test commands!");
-      setIsOpen(true);
+  // Turn on/off Assistant
+  const handleToggleAssistant = () => {
+    if (isOpen && keepListeningRef.current) {
+      // User explicitly wants to turn off assistant
+      keepListeningRef.current = false;
+      setIsListening(false);
+      setIsOpen(false);
+      try {
+        recognitionRef.current?.stop();
+      } catch {}
       return;
     }
 
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-    } else {
-      setIsOpen(true);
-      try {
-        recognitionRef.current?.start();
-      } catch (e) {
-        console.warn("[VoiceAssistant] Start error:", e);
-      }
+    // Turn ON assistant: keep listening continuously!
+    keepListeningRef.current = true;
+    setIsOpen(true);
+    setIsListening(true);
+    setTranscript("");
+    setAssistantReply(GREETING_TEXT);
+
+    // Speak greeting aloud
+    if (voiceEnabled) {
+      isSpeakingRef.current = true;
+      setIsSpeaking(true);
+      speakResponse(
+        GREETING_TEXT,
+        true,
+        () => {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          if (keepListeningRef.current) {
+            restartRecognition();
+          }
+        },
+        () => {
+          isSpeakingRef.current = true;
+          setIsSpeaking(true);
+        }
+      );
+    }
+
+    if (!hasSpeechRecognition) {
+      setAssistantReply("Speech recognition is not supported in this browser. You can tap any suggestion chip below to test commands!");
+      return;
+    }
+
+    try {
+      recognitionRef.current?.start();
+    } catch (e) {
+      console.debug("[VoiceAssistant] Start error:", e);
     }
   };
 
+  const handleClosePanel = () => {
+    keepListeningRef.current = false;
+    setIsListening(false);
+    setIsOpen(false);
+    try {
+      recognitionRef.current?.stop();
+    } catch {}
+  };
+
   return (
-    <div className={`voice-assistant ${isOpen ? "voice-assistant--open" : ""}`}>
-      {/* Floating Trigger Orb / Mic Button */}
+    <div className={`voice-assistant voice-assistant--left ${isOpen ? "voice-assistant--open" : ""}`}>
+      {/* 3D Robot Voice Assistant Button on Left Side */}
       <button
         id="voice-assistant-toggle"
-        className={`voice-assistant__orb ${isListening ? "voice-assistant__orb--listening" : ""}`}
-        onClick={toggleListening}
-        title={isListening ? "Listening... (Click to stop)" : "EV Voice Assistant (Click to speak)"}
-        aria-label="Voice Assistant"
+        className={`voice-assistant__robot-btn ${isListening ? "voice-assistant__robot-btn--active" : ""}`}
+        onClick={handleToggleAssistant}
+        title={isListening ? "EV Copilot Listening Continuously (Click to stop)" : "3D EV Copilot Voice Assistant — Click to speak"}
+        aria-label="3D EV Voice Assistant"
       >
-        <span className="voice-assistant__orb-icon">{isListening ? "🎙️" : "✨"}</span>
+        <div className="voice-assistant__avatar-container">
+          <img
+            src="/ai_robot.png"
+            alt="3D AI Assistant"
+            className="voice-assistant__robot-img"
+          />
+          {isListening && <div className="voice-assistant__glow-ring" />}
+        </div>
+
+        <div className="voice-assistant__meta">
+          <div className="voice-assistant__status-row">
+            <span className={`voice-assistant__dot ${isListening ? "voice-assistant__dot--pulsing" : ""}`} />
+            <span className="voice-assistant__name">EV Copilot</span>
+          </div>
+          <span className="voice-assistant__callout">
+            {isSpeaking
+              ? "Speaking... 🔊"
+              : isListening
+              ? "Listening continuously 🎙️"
+              : "Tap to activate 🎙️"}
+          </span>
+        </div>
+
         {isListening && (
           <div className="voice-assistant__waves">
             <span className="wave wave-1" />
@@ -171,29 +338,28 @@ export default function VoiceAssistant({
             <span className="wave wave-4" />
           </div>
         )}
-        <span className="voice-assistant__orb-label">{isListening ? "Listening..." : "Voice Assistant"}</span>
       </button>
 
-      {/* Expandable Assistant Card */}
+      {/* Expandable Holographic Assistant Dialogue Card */}
       {isOpen && (
-        <div className="voice-assistant__panel">
+        <div className="voice-assistant__panel voice-assistant__panel--left">
           <div className="voice-assistant__header">
             <div className="voice-assistant__title">
-              <span className="voice-assistant__badge">AI Copilot</span>
-              <span>EV Voice Control</span>
+              <span className="voice-assistant__badge">Always Listening</span>
+              <span>Voice Control</span>
             </div>
             <div className="voice-assistant__actions">
               <button
                 className={`voice-assistant__btn-icon ${voiceEnabled ? "voice-assistant__btn-icon--active" : ""}`}
                 onClick={() => setVoiceEnabled(!voiceEnabled)}
-                title={voiceEnabled ? "Mute Voice Feedback" : "Enable Voice Feedback"}
+                title={voiceEnabled ? "Mute Voice Audio" : "Enable Voice Audio"}
               >
                 {voiceEnabled ? "🔊" : "🔇"}
               </button>
               <button
                 className="voice-assistant__btn-icon"
-                onClick={() => setIsOpen(false)}
-                title="Close"
+                onClick={handleClosePanel}
+                title="Turn Off Assistant"
               >
                 ✕
               </button>
@@ -202,24 +368,26 @@ export default function VoiceAssistant({
 
           {/* Spoken Transcript & Assistant Response */}
           <div className="voice-assistant__body">
-            {transcript && (
-              <div className="voice-assistant__user-bubble">
-                <span className="voice-assistant__bubble-label">You:</span>
-                <p>{transcript}</p>
-              </div>
-            )}
-
             <div className="voice-assistant__ai-bubble">
-              <div className="voice-assistant__ai-avatar">⚡</div>
+              <div className="voice-assistant__ai-avatar-wrap">
+                <img src="/ai_robot.png" alt="AI Robot" className="voice-assistant__ai-mini-img" />
+              </div>
               <div className="voice-assistant__ai-text">
                 <p>{assistantReply}</p>
               </div>
             </div>
+
+            {transcript && (
+              <div className="voice-assistant__user-bubble">
+                <span className="voice-assistant__bubble-label">You said:</span>
+                <p>{transcript}</p>
+              </div>
+            )}
           </div>
 
           {/* Quick Voice Suggestions */}
           <div className="voice-assistant__footer">
-            <div className="voice-assistant__suggestions-title">Try saying or tap to test:</div>
+            <div className="voice-assistant__suggestions-title">Say anytime or tap:</div>
             <div className="voice-assistant__chips">
               {SUGGESTIONS.map((cmd) => (
                 <button

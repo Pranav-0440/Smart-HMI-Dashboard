@@ -12,6 +12,7 @@ import PowerDisplay from "../components/PowerDisplay";
 import VehicleControls from "../components/VehicleControls";
 import Alerts from "../components/Alerts";
 import SimControl from "../components/SimControl";
+import VoiceAssistant from "../components/VoiceAssistant";
 
 interface BikeDashboardProps {
   state: VehicleState;
@@ -62,7 +63,7 @@ export default function BikeDashboard({
 
       {/* Main dashboard grid */}
       <div className="dashboard__main">
-        {/* Left column: Battery */}
+        {/* Left column: Battery + Range + Voice Assistant */}
         <div className="dashboard__left">
           <BatteryGauge
             soc={state.batterySoc}
@@ -72,6 +73,20 @@ export default function BikeDashboard({
             temperature={state.batteryTemperature}
             power={state.batteryPower}
           />
+          <RangeDisplay
+            range={state.range}
+            soc={state.batterySoc}
+            consumptionWhPerKm={state.consumptionWhPerKm}
+          />
+          <VoiceAssistant
+            state={state}
+            onControl={onControl}
+            onMode={onMode}
+            onThrottle={onThrottle}
+            onBrake={onBrake}
+            onSlope={onSlope}
+            onReset={onReset}
+          />
         </div>
 
         {/* Center: Speedometer */}
@@ -80,11 +95,6 @@ export default function BikeDashboard({
             speed={state.speed}
             maxSpeed={100}
             accentColor="#00e5ff"
-          />
-          <RangeDisplay
-            range={state.range}
-            soc={state.batterySoc}
-            consumptionWhPerKm={state.consumptionWhPerKm}
           />
           <PowerDisplay
             motorPower={state.motorPower}

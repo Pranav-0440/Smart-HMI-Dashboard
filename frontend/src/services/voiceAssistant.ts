@@ -21,13 +21,40 @@ export interface VoiceCommandResult {
 }
 
 // Speak response using browser Text-to-Speech
-export function speakResponse(text: string, enabled: boolean = true): void {
-  if (!enabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+export function speakResponse(
+  text: string,
+  enabled: boolean = true,
+  onEnd?: () => void,
+  onStart?: () => void
+): void {
+  if (!enabled || typeof window === "undefined" || !("speechSynthesis" in window)) {
+    if (onEnd) onEnd();
+    return;
+  }
   try {
     window.speechSynthesis.cancel(); // cancel any previous speech
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1.05;
     utterance.pitch = 1.0;
+    
+    // Retain global reference to avoid Chrome GC bug dropping onend
+    (window as any).__lastSpeechUtterance = utterance;
+
+    let hasEnded = false;
+    const safeEnd = () => {
+      if (hasEnded) return;
+      hasEnded = true;
+      if (onEnd) onEnd();
+    };
+
+    if (onStart) utterance.onstart = onStart;
+    utterance.onend = safeEnd;
+    utterance.onerror = safeEnd;
+
+    // Safety fallback: in case onend never fires from browser
+    const maxDuration = Math.max(2500, text.length * 80);
+    setTimeout(safeEnd, maxDuration);
+
     // Prefer natural sounding voices if available
     const voices = window.speechSynthesis.getVoices();
     const englishVoice = voices.find(
@@ -39,8 +66,10 @@ export function speakResponse(text: string, enabled: boolean = true): void {
     window.speechSynthesis.speak(utterance);
   } catch (err) {
     console.warn("[VoiceAssistant] TTS error:", err);
+    if (onEnd) onEnd();
   }
 }
+
 
 /**
  * Parses user spoken phrase and triggers the corresponding vehicle control.

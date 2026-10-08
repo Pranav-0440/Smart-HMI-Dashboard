@@ -12,6 +12,7 @@ import PowerDisplay from "../components/PowerDisplay";
 import VehicleControls from "../components/VehicleControls";
 import Alerts from "../components/Alerts";
 import SimControl from "../components/SimControl";
+import VoiceAssistant from "../components/VoiceAssistant";
 
 interface CarDashboardProps {
   state: VehicleState;
@@ -76,6 +77,15 @@ export default function CarDashboard({
             range={state.range}
             soc={state.batterySoc}
             consumptionWhPerKm={state.consumptionWhPerKm}
+          />
+          <VoiceAssistant
+            state={state}
+            onControl={onControl}
+            onMode={onMode}
+            onThrottle={onThrottle}
+            onBrake={onBrake}
+            onSlope={onSlope}
+            onReset={onReset}
           />
         </div>
 
