@@ -304,8 +304,29 @@ def _process_ws_command(cmd: dict) -> None:
             simulator = Simulator(VEHICLE_CONFIGS[vtype], dt=0.05)
     elif action == "control":
         control = cmd.get("control", "")
-        if hasattr(simulator, control):
-            setattr(simulator, control, not getattr(simulator, control))
+        # Map camelCase to snake_case attribute
+        control_map = {
+            "headlight": "headlight",
+            "leftIndicator": "left_indicator",
+            "rightIndicator": "right_indicator",
+            "hazard": "hazard",
+            "sideStand": "side_stand",
+            "seatBelt": "seat_belt",
+            "doorsLocked": "doors_locked",
+            "parkingBrake": "parking_brake",
+            "climate": "climate_on",
+            "climateOn": "climate_on",
+            "cruiseControl": "cruise_control",
+            "horn": "horn",
+        }
+        attr = control_map.get(control, control)
+        if hasattr(simulator, attr):
+            new_val = not getattr(simulator, attr)
+            setattr(simulator, attr, new_val)
+            if attr == "hazard":
+                simulator.left_indicator = new_val
+                simulator.right_indicator = new_val
+            print(f"[WS Control] Toggled {attr} -> {new_val}")
     elif action == "reset":
         simulator.reset(initial_soc=cmd.get("soc", 80.0))
 

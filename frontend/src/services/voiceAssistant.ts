@@ -82,39 +82,67 @@ export function processVoiceCommand(
   const text = rawTranscript.toLowerCase().trim();
 
   // ── LEFT INDICATOR ──
-  if (
-    text.includes("left indicator") ||
-    text.includes("left signal") ||
-    text.includes("turn left") ||
-    text.includes("left light")
-  ) {
-    if (text.includes("off") || text.includes("stop") || text.includes("cancel")) {
+  const isLeftIndicator =
+    (text.includes("left") &&
+      (text.includes("indicator") ||
+        text.includes("signal") ||
+        text.includes("blinker") ||
+        text.includes("light") ||
+        text.includes("turn") ||
+        text.includes("indicate") ||
+        text.includes("side"))) ||
+    text === "left" ||
+    text === "left indicator" ||
+    text === "turn left";
+
+  if (isLeftIndicator) {
+    const isOff = text.includes("off") || text.includes("stop") || text.includes("cancel") || text.includes("disable") || text.includes("cut");
+    if (isOff) {
       if (state.leftIndicator) actions.onToggleControl("leftIndicator");
       return { matched: true, actionName: "left_indicator_off", response: "Left indicator turned off." };
     } else {
-      if (!state.leftIndicator) actions.onToggleControl("leftIndicator");
+      if (!state.leftIndicator) {
+        actions.onToggleControl("leftIndicator");
+      }
       return { matched: true, actionName: "left_indicator_on", response: "Left indicator turned on." };
     }
   }
 
   // ── RIGHT INDICATOR ──
-  if (
-    text.includes("right indicator") ||
-    text.includes("right signal") ||
-    text.includes("turn right") ||
-    text.includes("right light")
-  ) {
-    if (text.includes("off") || text.includes("stop") || text.includes("cancel")) {
+  const isRightIndicator =
+    (text.includes("right") &&
+      (text.includes("indicator") ||
+        text.includes("signal") ||
+        text.includes("blinker") ||
+        text.includes("light") ||
+        text.includes("turn") ||
+        text.includes("indicate") ||
+        text.includes("side"))) ||
+    text === "right" ||
+    text === "right indicator" ||
+    text === "turn right";
+
+  if (isRightIndicator) {
+    const isOff = text.includes("off") || text.includes("stop") || text.includes("cancel") || text.includes("disable") || text.includes("cut");
+    if (isOff) {
       if (state.rightIndicator) actions.onToggleControl("rightIndicator");
       return { matched: true, actionName: "right_indicator_off", response: "Right indicator turned off." };
     } else {
-      if (!state.rightIndicator) actions.onToggleControl("rightIndicator");
+      if (!state.rightIndicator) {
+        actions.onToggleControl("rightIndicator");
+      }
       return { matched: true, actionName: "right_indicator_on", response: "Right indicator turned on." };
     }
   }
 
   // ── HAZARD LIGHTS ──
-  if (text.includes("hazard") || text.includes("emergency light") || text.includes("flashers")) {
+  if (
+    text.includes("hazard") ||
+    text.includes("emergency light") ||
+    text.includes("flashers") ||
+    text.includes("both indicator") ||
+    text.includes("warning light")
+  ) {
     actions.onToggleControl("hazard");
     const nextState = !state.hazard;
     return {
@@ -125,8 +153,15 @@ export function processVoiceCommand(
   }
 
   // ── HEADLIGHTS / LIGHTS ──
-  if (text.includes("headlight") || text.includes("light") || text.includes("lamp")) {
-    if (text.includes("off") || text.includes("turn off") || text.includes("disable")) {
+  if (
+    text.includes("headlight") ||
+    text.includes("head lamp") ||
+    text.includes("light") ||
+    text.includes("lamp") ||
+    text.includes("beam")
+  ) {
+    const isOff = text.includes("off") || text.includes("turn off") || text.includes("disable") || text.includes("kill");
+    if (isOff) {
       if (state.headlight) actions.onToggleControl("headlight");
       return { matched: true, actionName: "headlight_off", response: "Headlights turned off." };
     } else {
@@ -136,23 +171,30 @@ export function processVoiceCommand(
   }
 
   // ── DRIVE MODES ──
-  if (text.includes("sport") || text.includes("beast mode") || text.includes("fast mode")) {
+  if (text.includes("sport") || text.includes("beast") || text.includes("fast mode") || text.includes("power mode") || text.includes("turbo")) {
     actions.onSetMode("SPORT");
     return { matched: true, actionName: "mode_sport", response: "Engaged Sport mode. Maximum power unlocked." };
   }
 
-  if (text.includes("eco") || text.includes("economy") || text.includes("save battery") || text.includes("efficient")) {
+  if (text.includes("eco") || text.includes("economy") || text.includes("save battery") || text.includes("efficient") || text.includes("range mode")) {
     actions.onSetMode("ECO");
     return { matched: true, actionName: "mode_eco", response: "Switched to Eco mode for maximum efficiency." };
   }
 
-  if (text.includes("normal") || text.includes("standard") || text.includes("city mode") || text.includes("default mode")) {
+  if (text.includes("normal") || text.includes("standard") || text.includes("city mode") || text.includes("default mode") || text.includes("drive mode")) {
     actions.onSetMode("NORMAL");
     return { matched: true, actionName: "mode_normal", response: "Switched to Normal drive mode." };
   }
 
   // ── CAR CABIN CONTROLS (Climate / Doors / Seatbelt / Park Brake) ──
-  if (text.includes("climate") || text.includes("ac") || text.includes("air condition") || text.includes("cooling") || text.includes("heater")) {
+  if (
+    text.includes("climate") ||
+    text.includes("ac") ||
+    text.includes("air condition") ||
+    text.includes("cooling") ||
+    text.includes("heater") ||
+    text.includes("temperature control")
+  ) {
     actions.onToggleControl("climate");
     return {
       matched: true,
@@ -161,7 +203,7 @@ export function processVoiceCommand(
     };
   }
 
-  if (text.includes("door") || text.includes("lock")) {
+  if (text.includes("door") || text.includes("lock") || text.includes("unlock")) {
     actions.onToggleControl("doorsLocked");
     return {
       matched: true,
@@ -170,7 +212,7 @@ export function processVoiceCommand(
     };
   }
 
-  if (text.includes("parking brake") || text.includes("handbrake") || text.includes("p brake")) {
+  if (text.includes("parking brake") || text.includes("handbrake") || text.includes("p brake") || text.includes("park brake")) {
     actions.onToggleControl("parkingBrake");
     return {
       matched: true,
@@ -179,7 +221,7 @@ export function processVoiceCommand(
     };
   }
 
-  if (text.includes("seatbelt") || text.includes("seat belt")) {
+  if (text.includes("seatbelt") || text.includes("seat belt") || text.includes("belt")) {
     actions.onToggleControl("seatBelt");
     return {
       matched: true,
@@ -195,6 +237,16 @@ export function processVoiceCommand(
       matched: true,
       actionName: "side_stand",
       response: "Side stand toggled.",
+    };
+  }
+
+  // ── RESET ──
+  if (text.includes("reset") || text.includes("restart") || text.includes("start over")) {
+    actions.onReset();
+    return {
+      matched: true,
+      actionName: "reset",
+      response: "Simulation reset to default initial state.",
     };
   }
 

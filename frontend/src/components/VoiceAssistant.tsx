@@ -49,18 +49,17 @@ export default function VoiceAssistant({
   onReset,
 }: VoiceAssistantProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [assistantReply, setAssistantReply] = useState<string>(GREETING_TEXT);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
-  const [hasSpeechRecognition, setHasSpeechRecognition] = useState(true);
 
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
   const keepListeningRef = useRef<boolean>(false);
   const isSpeakingRef = useRef<boolean>(false);
   const restartTimerRef = useRef<number | null>(null);
   const clearTranscriptTimerRef = useRef<number | null>(null);
+  const handleExecuteCommandRef = useRef<(cmd: string) => void>(() => {});
 
   const actions: VoiceAssistantActions = {
     onToggleControl: onControl,
@@ -71,37 +70,88 @@ export default function VoiceAssistant({
     onReset,
   };
 
-  // Safe restart recognition helper
-  const restartRecognition = useCallback(() => {
-    if (!keepListeningRef.current || !recognitionRef.current) return;
-    if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+  // Recreate and start speech recognition instance safely
+  const createAndStartRecognition = useCallback(() => {
+    if (!keepListeningRef.current || typeof window === "undefined") return;
 
-    restartTimerRef.current = window.setTimeout(() => {
-      if (!keepListeningRef.current || !recognitionRef.current || isSpeakingRef.current) return;
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-      } catch (err: any) {
-        // "already started" error is safe to ignore
-        if (err.name !== "InvalidStateError") {
-          console.debug("[VoiceAssistant] Restart attempt:", err);
-        }
-      }
-    }, 100);
-  }, []);
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition ||
+      null;
 
-  // Watchdog timer: guarantees continuous listening stays alive even across silent pauses or browser timeouts
-  useEffect(() => {
-    const watchdog = setInterval(() => {
-      if (keepListeningRef.current && !isSpeakingRef.current && recognitionRef.current) {
+    if (!SpeechRecognition) return;
+
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onresult = null;
         try {
-          recognitionRef.current.start();
-          setIsListening(true);
+          recognitionRef.current.abort();
         } catch {}
       }
-    }, 800);
+    } catch {}
 
-    return () => clearInterval(watchdog);
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event: any) => {
+      if (isSpeakingRef.current) return;
+
+      let finalTranscript = "";
+      let interimTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i];
+        if (item.isFinal) {
+          finalTranscript += item[0].transcript;
+        } else {
+          interimTranscript += item[0].transcript;
+        }
+      }
+
+      const activeText = finalTranscript || interimTranscript;
+      if (activeText.trim()) {
+        setTranscript(activeText);
+      }
+
+      if (finalTranscript.trim()) {
+        handleExecuteCommandRef.current(finalTranscript.trim());
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      if (event.error === "not-allowed") {
+        keepListeningRef.current = false;
+        setIsOpen(false);
+        setAssistantReply("Microphone access denied. Please allow microphone permission in your browser.");
+        return;
+      }
+      if (keepListeningRef.current && !isSpeakingRef.current) {
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = window.setTimeout(createAndStartRecognition, 200);
+      }
+    };
+
+    recognition.onend = () => {
+      // Whenever recognition ends, if user has assistant ON, immediately recreate and restart!
+      if (keepListeningRef.current && !isSpeakingRef.current) {
+        if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = window.setTimeout(createAndStartRecognition, 200);
+      }
+    };
+
+    recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+    } catch (err: any) {
+      if (err.name !== "InvalidStateError") {
+        console.debug("[VoiceAssistant] Start attempt:", err);
+      }
+    }
   }, []);
 
   // Execute and process a command (from mic or suggestion click)
@@ -125,7 +175,7 @@ export default function VoiceAssistant({
           setIsSpeaking(false);
           // Continue listening seamlessly
           if (keepListeningRef.current) {
-            restartRecognition();
+            createAndStartRecognition();
           }
         },
         () => {
@@ -140,110 +190,48 @@ export default function VoiceAssistant({
         setTranscript("");
       }, 4000);
     },
-    [state, voiceEnabled, restartRecognition]
+    [state, voiceEnabled, createAndStartRecognition]
   );
 
-  // Initialize Speech Recognition on Mount
+  handleExecuteCommandRef.current = handleExecuteCommand;
+
+  // Watchdog timer: guarantees continuous listening stays alive even across silent pauses
   useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition ||
-      null;
-
-    if (!SpeechRecognition) {
-      setHasSpeechRecognition(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true; // Continuous listening: does not stop after a single sentence!
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event: any) => {
-      if (isSpeakingRef.current) return;
-
-      let finalTranscript = "";
-      let interimTranscript = "";
-
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        const item = event.results[i];
-        if (item.isFinal) {
-          finalTranscript += item[0].transcript;
-        } else {
-          interimTranscript += item[0].transcript;
-        }
+    const watchdog = setInterval(() => {
+      if (keepListeningRef.current && !isSpeakingRef.current) {
+        try {
+          if (!recognitionRef.current) {
+            createAndStartRecognition();
+          } else {
+            recognitionRef.current.start();
+          }
+        } catch {}
       }
+    }, 1000);
 
-      const activeText = finalTranscript || interimTranscript;
-      if (activeText.trim()) {
-        setTranscript(activeText);
-      }
+    return () => clearInterval(watchdog);
+  }, [createAndStartRecognition]);
 
-      if (finalTranscript.trim()) {
-        handleExecuteCommand(finalTranscript.trim());
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      if (event.error === "no-speech") {
-        // Normal silence timeout in continuous mode; auto-restart if we want to keep listening
-        if (keepListeningRef.current) {
-          restartRecognition();
-        }
-        return;
-      }
-
-      if (event.error === "not-allowed") {
-        keepListeningRef.current = false;
-        setIsListening(false);
-        setAssistantReply("Microphone access denied. Please allow microphone permission in your browser.");
-        return;
-      }
-
-      console.warn("[VoiceAssistant] Speech error:", event.error);
-      if (keepListeningRef.current) {
-        restartRecognition();
-      }
-    };
-
-    recognition.onend = () => {
-      // If user enabled assistant, keep listening continuously!
-      if (keepListeningRef.current) {
-        restartRecognition();
-      } else {
-        setIsListening(false);
-      }
-    };
-
-    recognitionRef.current = recognition;
-
+  // Clean up on unmount
+  useEffect(() => {
     return () => {
       keepListeningRef.current = false;
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (clearTranscriptTimerRef.current) clearTimeout(clearTranscriptTimerRef.current);
       try {
-        recognition.abort();
+        recognitionRef.current?.abort();
       } catch {}
     };
-  }, [handleExecuteCommand, restartRecognition]);
-
+  }, []);
 
   // Turn on/off Assistant
   const handleToggleAssistant = () => {
     if (isOpen && keepListeningRef.current) {
       // User explicitly wants to turn off assistant
       keepListeningRef.current = false;
-      setIsListening(false);
       setIsOpen(false);
       try {
-        recognitionRef.current?.stop();
+        recognitionRef.current?.abort();
       } catch {}
       return;
     }
@@ -251,7 +239,6 @@ export default function VoiceAssistant({
     // Turn ON assistant: keep listening continuously!
     keepListeningRef.current = true;
     setIsOpen(true);
-    setIsListening(true);
     setTranscript("");
     setAssistantReply(GREETING_TEXT);
 
@@ -266,7 +253,7 @@ export default function VoiceAssistant({
           isSpeakingRef.current = false;
           setIsSpeaking(false);
           if (keepListeningRef.current) {
-            restartRecognition();
+            createAndStartRecognition();
           }
         },
         () => {
@@ -274,26 +261,16 @@ export default function VoiceAssistant({
           setIsSpeaking(true);
         }
       );
-    }
-
-    if (!hasSpeechRecognition) {
-      setAssistantReply("Speech recognition is not supported in this browser. You can tap any suggestion chip below to test commands!");
-      return;
-    }
-
-    try {
-      recognitionRef.current?.start();
-    } catch (e) {
-      console.debug("[VoiceAssistant] Start error:", e);
+    } else {
+      createAndStartRecognition();
     }
   };
 
   const handleClosePanel = () => {
     keepListeningRef.current = false;
-    setIsListening(false);
     setIsOpen(false);
     try {
-      recognitionRef.current?.stop();
+      recognitionRef.current?.abort();
     } catch {}
   };
 
@@ -302,9 +279,9 @@ export default function VoiceAssistant({
       {/* 3D Robot Voice Assistant Button on Left Side */}
       <button
         id="voice-assistant-toggle"
-        className={`voice-assistant__robot-btn ${isListening ? "voice-assistant__robot-btn--active" : ""}`}
+        className={`voice-assistant__robot-btn ${isOpen ? "voice-assistant__robot-btn--active" : ""}`}
         onClick={handleToggleAssistant}
-        title={isListening ? "EV Copilot Listening Continuously (Click to stop)" : "3D EV Copilot Voice Assistant — Click to speak"}
+        title={isOpen ? "EV Copilot Listening Continuously (Click to turn off)" : "3D EV Copilot Voice Assistant — Click to speak"}
         aria-label="3D EV Voice Assistant"
       >
         <div className="voice-assistant__avatar-container">
@@ -313,24 +290,24 @@ export default function VoiceAssistant({
             alt="3D AI Assistant"
             className="voice-assistant__robot-img"
           />
-          {isListening && <div className="voice-assistant__glow-ring" />}
+          {isOpen && <div className="voice-assistant__glow-ring" />}
         </div>
 
         <div className="voice-assistant__meta">
           <div className="voice-assistant__status-row">
-            <span className={`voice-assistant__dot ${isListening ? "voice-assistant__dot--pulsing" : ""}`} />
+            <span className={`voice-assistant__dot ${isOpen ? "voice-assistant__dot--pulsing" : ""}`} />
             <span className="voice-assistant__name">EV Copilot</span>
           </div>
           <span className="voice-assistant__callout">
             {isSpeaking
               ? "Speaking... 🔊"
-              : isListening
+              : isOpen
               ? "Listening continuously 🎙️"
               : "Tap to activate 🎙️"}
           </span>
         </div>
 
-        {isListening && (
+        {isOpen && (
           <div className="voice-assistant__waves">
             <span className="wave wave-1" />
             <span className="wave wave-2" />
