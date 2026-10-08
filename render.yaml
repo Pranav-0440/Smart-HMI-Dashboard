@@ -12,9 +12,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.10.12
 
-staticSites:
   # React Frontend (Vite Static Site)
-  - name: ev-hmi-dashboard-frontend
+  - type: static
+    name: ev-hmi-dashboard-frontend
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
