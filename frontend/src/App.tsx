@@ -8,6 +8,7 @@ import { wsService, apiPost } from "./services/websocket";
 import VehicleSelection from "./pages/VehicleSelection";
 import BikeDashboard from "./pages/BikeDashboard";
 import CarDashboard from "./pages/CarDashboard";
+import VoiceAssistant from "./components/VoiceAssistant";
 
 // Default state for initial render
 const DEFAULT_STATE: VehicleState = {
@@ -165,6 +166,17 @@ export default function App() {
           onSlope={handleSlope}
           onAmbient={handleAmbient}
           onControl={handleControl}
+          onReset={handleReset}
+        />
+      )}
+      {page !== "selection" && (
+        <VoiceAssistant
+          state={state}
+          onControl={handleControl}
+          onMode={handleMode}
+          onThrottle={handleThrottle}
+          onBrake={handleBrake}
+          onSlope={handleSlope}
           onReset={handleReset}
         />
       )}
