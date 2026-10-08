@@ -1,0 +1,990 @@
+/* ═══════════════════════════════════════════════════════════════
+   EV-HMI Platform — Design System
+   Premium dark automotive theme with glassmorphism + micro-animations
+   ═══════════════════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* ── CSS Variables ─────────────────────────────────────────── */
+:root {
+  --bg-primary: #0a0e17;
+  --bg-secondary: #111827;
+  --bg-card: rgba(17, 24, 39, 0.7);
+  --bg-glass: rgba(255, 255, 255, 0.03);
+  --border-glass: rgba(255, 255, 255, 0.08);
+
+  --text-primary: #f0f4f8;
+  --text-secondary: rgba(240, 244, 248, 0.6);
+  --text-muted: rgba(240, 244, 248, 0.35);
+
+  --accent-cyan: #00e5ff;
+  --accent-green: #00e676;
+  --accent-amber: #ffab00;
+  --accent-red: #ff1744;
+  --accent-blue: #448aff;
+  --accent-purple: #b388ff;
+
+  --font-primary: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-primary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VEHICLE SELECTION PAGE
+   ══════════════════════════════════════════════════════════════ */
+
+.vehicle-selection {
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.vehicle-selection__bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0, 229, 255, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 100%, rgba(68, 138, 255, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 40% at 20% 90%, rgba(179, 136, 255, 0.05) 0%, transparent 50%);
+  animation: bgPulse 8s ease-in-out infinite alternate;
+}
+
+@keyframes bgPulse {
+  0% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+.vehicle-selection__content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  max-width: 560px;
+  width: 100%;
+  padding: 0 24px;
+}
+
+.vehicle-selection__title {
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #fff 0%, var(--accent-cyan) 50%, var(--accent-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.vehicle-selection__logo {
+  -webkit-text-fill-color: initial;
+  margin-right: 8px;
+}
+
+.vehicle-selection__subtitle {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 400;
+  margin-bottom: 48px;
+}
+
+.vehicle-selection__prompt {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.vehicle-selection__cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.vehicle-selection__footer {
+  margin-top: 48px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ── Vehicle Card ──────────────────────────────────────────── */
+
+.vehicle-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 28px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: var(--transition);
+  text-align: left;
+  backdrop-filter: blur(12px);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.vehicle-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.vehicle-card--bike:hover {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 8px 32px rgba(0, 229, 255, 0.15);
+}
+
+.vehicle-card--car:hover {
+  border-color: var(--accent-blue);
+  box-shadow: 0 8px 32px rgba(68, 138, 255, 0.15);
+}
+
+.vehicle-card__icon {
+  font-size: 2.8rem;
+  flex-shrink: 0;
+}
+
+.vehicle-card__info {
+  flex: 1;
+}
+
+.vehicle-card__name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.vehicle-card__desc {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 8px;
+}
+
+.vehicle-card__specs {
+  display: flex;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.vehicle-card__arrow {
+  font-size: 1.4rem;
+  color: var(--text-muted);
+  transition: var(--transition);
+}
+
+.vehicle-card:hover .vehicle-card__arrow {
+  color: var(--text-primary);
+  transform: translateX(4px);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DASHBOARD — Common Layout
+   ══════════════════════════════════════════════════════════════ */
+
+.dashboard {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ── Top Bar ───────────────────────────────────────────────── */
+
+.dashboard__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: rgba(17, 24, 39, 0.9);
+  border-bottom: 1px solid var(--border-glass);
+  backdrop-filter: blur(16px);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.dashboard__back {
+  background: none;
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.8rem;
+  transition: var(--transition);
+}
+
+.dashboard__back:hover {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-primary);
+}
+
+.dashboard__time {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.dashboard__vehicle-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.dashboard__status {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.dashboard__gear {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--accent-green);
+  background: rgba(0, 230, 118, 0.1);
+  padding: 2px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(0, 230, 118, 0.2);
+}
+
+/* ── Main Grid ─────────────────────────────────────────────── */
+
+.dashboard__main {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  gap: 16px;
+  padding: 16px 20px;
+  flex: 1;
+  min-height: 0;
+  align-items: start;
+}
+
+.dashboard__main--car {
+  grid-template-columns: 1.2fr 1.5fr 1.2fr;
+}
+
+.dashboard__left,
+.dashboard__right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dashboard__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SPEEDOMETER
+   ══════════════════════════════════════════════════════════════ */
+
+.speedometer {
+  display: flex;
+  justify-content: center;
+  filter: drop-shadow(0 0 20px rgba(0, 229, 255, 0.1));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BATTERY GAUGE
+   ══════════════════════════════════════════════════════════════ */
+
+.battery-gauge {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.battery-gauge__visual {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.battery-gauge__cap {
+  width: 24px;
+  height: 6px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px 2px 0 0;
+}
+
+.battery-gauge__body {
+  width: 64px;
+  height: 120px;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.battery-gauge__fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  transition: height 0.6s ease, background 0.6s ease;
+  border-radius: 2px;
+}
+
+.battery-gauge__percentage {
+  position: relative;
+  z-index: 1;
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+
+.battery-gauge__charging-icon {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.2rem;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.battery-gauge__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.battery-gauge__stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.battery-gauge__label {
+  color: var(--text-muted);
+}
+
+.battery-gauge__value {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOTOR STATS
+   ══════════════════════════════════════════════════════════════ */
+
+.motor-stats {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  backdrop-filter: blur(8px);
+}
+
+.motor-stats__title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.motor-stats__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.motor-stats__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.motor-stats__label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  width: 50px;
+  flex-shrink: 0;
+}
+
+.motor-stats__value {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  min-width: 70px;
+  text-align: right;
+}
+
+.motor-stats__value--highlight {
+  color: var(--accent-cyan);
+}
+
+.motor-stats__bar-track {
+  flex: 1;
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.motor-stats__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DRIVE MODES
+   ══════════════════════════════════════════════════════════════ */
+
+.drive-modes {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  padding: 8px 20px;
+  flex-shrink: 0;
+}
+
+.drive-modes__btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 28px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-xl);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: var(--transition);
+}
+
+.drive-modes__btn:hover {
+  background: rgba(255,255,255,0.05);
+}
+
+.drive-modes__btn--active {
+  background: rgba(255,255,255,0.06);
+  font-weight: 700;
+}
+
+.drive-modes__icon {
+  font-size: 1rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RANGE DISPLAY
+   ══════════════════════════════════════════════════════════════ */
+
+.range-display {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  backdrop-filter: blur(8px);
+}
+
+.range-display__icon {
+  font-size: 1.5rem;
+}
+
+.range-display__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.range-display__value {
+  font-family: var(--font-mono);
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+
+.range-display__efficiency {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   POWER DISPLAY
+   ══════════════════════════════════════════════════════════════ */
+
+.power-display {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.power-display__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.power-display__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.power-display__value {
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.power-display__item--regen {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.power-display__value--regen {
+  color: var(--accent-green);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   VEHICLE CONTROLS
+   ══════════════════════════════════════════════════════════════ */
+
+.vehicle-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 8px 20px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.control-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.7rem;
+  transition: var(--transition);
+  min-width: 56px;
+}
+
+.control-btn:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.control-btn--active {
+  color: var(--accent-cyan);
+  border-color: rgba(0, 229, 255, 0.3);
+  background: rgba(0, 229, 255, 0.05);
+}
+
+.control-btn--blink {
+  animation: blink 0.7s ease-in-out infinite;
+}
+
+.control-btn__icon {
+  font-size: 1.3rem;
+}
+
+.control-btn__label {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ALERTS
+   ══════════════════════════════════════════════════════════════ */
+
+.alerts {
+  padding: 6px 20px;
+  flex-shrink: 0;
+}
+
+.alerts--clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.alerts__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  animation: slideIn 0.3s ease;
+}
+
+.alerts__item--warning {
+  background: rgba(255, 171, 0, 0.1);
+  border: 1px solid rgba(255, 171, 0, 0.2);
+  color: var(--accent-amber);
+}
+
+.alerts__item--danger {
+  background: rgba(255, 23, 68, 0.1);
+  border: 1px solid rgba(255, 23, 68, 0.2);
+  color: var(--accent-red);
+  animation: slideIn 0.3s ease, pulse 2s ease-in-out infinite;
+}
+
+.alerts__item--critical {
+  background: rgba(255, 23, 68, 0.15);
+  border: 1px solid rgba(255, 23, 68, 0.3);
+  color: var(--accent-red);
+  animation: slideIn 0.3s ease, pulse 1s ease-in-out infinite;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CAR-SPECIFIC INFO
+   ══════════════════════════════════════════════════════════════ */
+
+.car-info {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.car-info__item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.car-info__item span:last-child {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SIMULATION CONTROL PANEL
+   ══════════════════════════════════════════════════════════════ */
+
+.sim-control {
+  background: rgba(17, 24, 39, 0.95);
+  border-top: 1px solid var(--border-glass);
+  backdrop-filter: blur(16px);
+  flex-shrink: 0;
+}
+
+.sim-control__toggle {
+  width: 100%;
+  padding: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: var(--transition);
+}
+
+.sim-control__toggle:hover {
+  color: var(--text-secondary);
+}
+
+.sim-control__body {
+  padding: 12px 20px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: center;
+}
+
+.sim-control__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 200px;
+}
+
+.sim-control__row label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  width: 70px;
+  flex-shrink: 0;
+}
+
+.sim-control__slider {
+  flex: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.sim-control__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
+}
+
+.sim-control__slider--throttle::-webkit-slider-thumb {
+  background: var(--accent-green);
+  box-shadow: 0 0 8px rgba(0, 230, 118, 0.4);
+}
+
+.sim-control__slider--brake::-webkit-slider-thumb {
+  background: var(--accent-red);
+  box-shadow: 0 0 8px rgba(255, 23, 68, 0.4);
+}
+
+.sim-control__val {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+  width: 40px;
+  text-align: right;
+  color: var(--text-secondary);
+}
+
+.sim-control__mode-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.sim-control__mode-btn {
+  padding: 4px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.sim-control__mode-btn--active {
+  color: var(--accent-cyan);
+  border-color: var(--accent-cyan);
+  background: rgba(0, 229, 255, 0.08);
+}
+
+.sim-control__reset {
+  padding: 6px 20px;
+  background: rgba(255, 23, 68, 0.1);
+  border: 1px solid rgba(255, 23, 68, 0.2);
+  border-radius: var(--radius-sm);
+  color: var(--accent-red);
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.sim-control__reset:hover {
+  background: rgba(255, 23, 68, 0.2);
+}
+
+.sim-control__readout {
+  display: flex;
+  gap: 16px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  flex-wrap: wrap;
+}
+
+.sim-control__readout b {
+  color: var(--text-primary);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONNECTION OVERLAY
+   ══════════════════════════════════════════════════════════════ */
+
+.connection-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 23, 0.92);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+}
+
+.connection-overlay__content {
+  text-align: center;
+}
+
+.connection-overlay__spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--border-glass);
+  border-top-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 20px;
+}
+
+.connection-overlay__content p {
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.connection-overlay__hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.connection-overlay__hint code {
+  background: rgba(255,255,255,0.06);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  color: var(--accent-cyan);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ══════════════════════════════════════════════════════════════ */
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SCROLLBAR
+   ══════════════════════════════════════════════════════════════ */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .dashboard__main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .dashboard__main--car {
+    grid-template-columns: 1fr;
+  }
+
+  .vehicle-selection__title {
+    font-size: 2rem;
+  }
+}

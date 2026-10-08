@@ -1,0 +1,40 @@
+services:
+  # Python Digital Twin Backend (FastAPI + WebSockets)
+  - type: web
+    name: ev-digital-twin-backend
+    runtime: python
+    rootDir: digital-twin
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.12
+
+  # React Frontend (Vite Static Site)
+  - type: web
+    name: ev-hmi-dashboard-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    plan: free
+    autoDeploy: true
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: ev-digital-twin-backend
+          property: host
+          value: https://${ev-digital-twin-backend.host}/api
+      - key: VITE_WS_URL
+        fromService:
+          type: web
+          name: ev-digital-twin-backend
+          property: host
+          value: wss://${ev-digital-twin-backend.host}/ws/vehicle
