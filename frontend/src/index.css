@@ -971,20 +971,176 @@ body {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   RESPONSIVE
+   RESPONSIVE & MOBILE PWA STYLES
    ══════════════════════════════════════════════════════════════ */
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .dashboard__main {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     grid-template-rows: auto;
   }
 
-  .dashboard__main--car {
-    grid-template-columns: 1fr;
+  .dashboard__col--center {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  html, body, #root {
+    overflow-y: auto;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .vehicle-selection {
+    height: auto;
+    min-height: 100vh;
+    padding: 32px 16px;
+    align-items: flex-start;
+  }
+
+  .vehicle-selection__content {
+    padding: 0;
   }
 
   .vehicle-selection__title {
     font-size: 2rem;
   }
+
+  .vehicle-selection__subtitle {
+    margin-bottom: 24px;
+    font-size: 0.9rem;
+  }
+
+  .vehicle-selection__prompt {
+    font-size: 0.95rem;
+    margin-bottom: 16px;
+  }
+
+  .vehicle-card {
+    padding: 16px 20px;
+    gap: 14px;
+  }
+
+  .vehicle-card__icon {
+    font-size: 2.2rem;
+  }
+
+  .vehicle-card__name {
+    font-size: 1.1rem;
+  }
+
+  .dashboard {
+    height: auto;
+    min-height: 100vh;
+    overflow-y: visible;
+  }
+
+  .dashboard__topbar {
+    padding: 8px 14px;
+    padding-top: max(8px, env(safe-area-inset-top));
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .dashboard__main {
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .dashboard__main--car {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dashboard__col {
+    width: 100%;
+    gap: 12px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .speedometer {
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  .speedometer__value {
+    font-size: 3.2rem;
+  }
+
+  .battery-gauge__ring {
+    width: 140px;
+    height: 140px;
+  }
+
+  .battery-gauge__soc {
+    font-size: 2.2rem;
+  }
+
+  .vehicle-controls {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .control-btn {
+    min-height: 48px;
+    padding: 8px 4px;
+  }
+
+  .drive-modes {
+    gap: 8px;
+  }
+
+  .drive-mode-btn {
+    padding: 10px 8px;
+    font-size: 0.85rem;
+  }
+
+  .sim-control {
+    position: sticky;
+    bottom: 0;
+    z-index: 1000;
+    margin: 12px -12px -12px -12px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    backdrop-filter: blur(24px);
+    background: rgba(10, 14, 23, 0.95);
+    border-top: 1px solid var(--border-glass);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+  }
+
+  .sim-control__slider {
+    height: 32px;
+  }
 }
+
+@media (max-width: 480px) {
+  .vehicle-selection__title {
+    font-size: 1.65rem;
+  }
+
+  .vehicle-card__specs {
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+
+  .vehicle-controls {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dashboard__status {
+    gap: 8px;
+    font-size: 0.75rem;
+  }
+
+  .dashboard__vehicle-name {
+    font-size: 0.85rem;
+  }
+}
+
