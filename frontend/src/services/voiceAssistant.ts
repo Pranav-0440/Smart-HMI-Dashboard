@@ -329,26 +329,6 @@ export function processVoiceCommand(
     };
   }
 
-  // ── MUTE / SILENCE WARNINGS ──
-  if (
-    text.includes("mute") ||
-    text.includes("silence") ||
-    text.includes("quiet") ||
-    text.includes("stop talking") ||
-    text.includes("shut up") ||
-    text.includes("pause warning") ||
-    text.includes("stop warning")
-  ) {
-    if (actions.onMuteWarnings) {
-      actions.onMuteWarnings(30000);
-    }
-    return {
-      matched: true,
-      actionName: "mute_warnings",
-      response: "Warnings muted for 30 seconds.",
-    };
-  }
-
   // ── RESET ──
   if (text.includes("reset") || text.includes("restart simulation") || text.includes("new trip")) {
     actions.onReset();

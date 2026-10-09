@@ -65,9 +65,18 @@ export default function VoiceAssistant({
   const accumulatedSpeechRef = useRef<string>("");
   const speechDebounceTimerRef = useRef<number | null>(null);
   const warningRepeatTimerRef = useRef<number | null>(null);
-  const hadActiveWarningsRef = useRef<boolean>(false);
   const currentTTSUtteranceTextRef = useRef<string>("");
   const warningPauseUntilRef = useRef<number>(0);
+
+  const warningsRef = useRef<string[]>(state.warnings || []);
+  const voiceEnabledRef = useRef<boolean>(voiceEnabled);
+  const prevWarningsKeyRef = useRef<string>("");
+  const hadWarningsRef = useRef<boolean>(false);
+
+  warningsRef.current = state.warnings || [];
+  voiceEnabledRef.current = voiceEnabled;
+
+  const warningsKey = (state.warnings || []).join("||");
 
   const actions: VoiceAssistantActions = {
     onToggleControl: onControl,
@@ -78,11 +87,14 @@ export default function VoiceAssistant({
     onReset,
     onMuteWarnings: (durationMs = 30000) => {
       warningPauseUntilRef.current = Date.now() + durationMs;
-      if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+      if (warningRepeatTimerRef.current) {
+        clearTimeout(warningRepeatTimerRef.current);
+        warningRepeatTimerRef.current = null;
+      }
     },
   };
 
-  // Check if speech captured by the mic is the device's own audio playing out of the speaker
+  // Acoustic Echo Filter: reject captured audio that matches assistant's own TTS output
   const isDeviceAudioEcho = useCallback((recognizedText: string): boolean => {
     const currentTTS = currentTTSUtteranceTextRef.current;
     if (!currentTTS) return false;
@@ -92,7 +104,6 @@ export default function VoiceAssistant({
 
     if (!cleanRec || !cleanSpoken) return false;
 
-    // Distinct vehicle commands that are never part of assistant warnings or greetings
     const isDistinctUserCommand = (text: string) => {
       const distinctKeywords = [
         "left indicator", "right indicator", "turn on", "turn off",
@@ -106,15 +117,13 @@ export default function VoiceAssistant({
     };
 
     if (isDistinctUserCommand(cleanRec) && !cleanSpoken.includes(cleanRec)) {
-      return false; // Definitely real user input!
+      return false; // Valid driver command
     }
 
-    // 1. Direct substring match (e.g. mic hears words from current warning)
     if (cleanSpoken.includes(cleanRec)) {
       return true;
     }
 
-    // 2. Token overlap match (e.g. mic hears words matching >= 40% of the assistant's speech)
     const recWords = cleanRec.split(/\s+/).filter((w) => w.length > 2);
     const spokenWords = new Set(cleanSpoken.split(/\s+/).filter((w) => w.length > 2));
 
@@ -129,7 +138,7 @@ export default function VoiceAssistant({
     return overlap >= 0.4;
   }, []);
 
-  // Recreate and start speech recognition instance safely (Full-Duplex continuous)
+  // Continuous Full-Duplex Speech Recognition instance
   const createAndStartRecognition = useCallback(() => {
     if (!keepListeningRef.current || typeof window === "undefined") return;
 
@@ -173,7 +182,6 @@ export default function VoiceAssistant({
       const rawNew = (currentFinal || currentInterim).trim();
       if (!rawNew) return;
 
-      // Echo Filter: Check if incoming speech is the device's own speaker output
       if (isDeviceAudioEcho(rawNew)) {
         return;
       }
@@ -192,7 +200,7 @@ export default function VoiceAssistant({
 
       setTranscript(activeText);
 
-      // BARGE-IN: If user speaks while Copilot is talking, cancel assistant speaker audio!
+      // Barge-in: If user starts speaking while Copilot is speaking or repeating warnings, cancel TTS immediately
       if (isSpeakingRef.current || (typeof window !== "undefined" && window.speechSynthesis?.speaking)) {
         try {
           window.speechSynthesis?.cancel();
@@ -200,12 +208,14 @@ export default function VoiceAssistant({
         isSpeakingRef.current = false;
         setIsSpeaking(false);
         currentTTSUtteranceTextRef.current = "";
-        // Pause repeating warnings for 7 seconds so driver command is handled cleanly
         warningPauseUntilRef.current = Date.now() + 7000;
-        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+        if (warningRepeatTimerRef.current) {
+          clearTimeout(warningRepeatTimerRef.current);
+          warningRepeatTimerRef.current = null;
+        }
       }
 
-      // Sentence Debouncer: Wait 700ms of silence to accumulate complete sentence
+      // Debounce 700ms silence to receive complete phrase
       if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
       speechDebounceTimerRef.current = window.setTimeout(() => {
         const fullPhrase = accumulatedSpeechRef.current.trim();
@@ -232,7 +242,6 @@ export default function VoiceAssistant({
     };
 
     recognition.onend = () => {
-      // If there was any pending accumulated speech when recognition ended, process it
       if (accumulatedSpeechRef.current.trim().length >= 3) {
         const fullPhrase = accumulatedSpeechRef.current.trim();
         accumulatedSpeechRef.current = "";
@@ -242,7 +251,6 @@ export default function VoiceAssistant({
         }
       }
 
-      // Seamlessly keep listening continuously without dropping
       if (keepListeningRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         restartTimerRef.current = window.setTimeout(createAndStartRecognition, 100);
@@ -260,10 +268,9 @@ export default function VoiceAssistant({
     }
   }, [isDeviceAudioEcho]);
 
-  // Execute and process a command (from mic or suggestion click)
+  // Execute and process command
   const handleExecuteCommand = useCallback(
     (commandText: string, isManual: boolean = false) => {
-      // Immediately cancel any previous speech synthesis
       try {
         window.speechSynthesis?.cancel();
       } catch {}
@@ -271,15 +278,17 @@ export default function VoiceAssistant({
       setIsSpeaking(false);
       currentTTSUtteranceTextRef.current = "";
 
-      // Pause repeating warning alerts for 7 seconds so driver command confirmation is heard
+      // Pause repeating warnings for 7s so command response is heard clearly
       warningPauseUntilRef.current = Date.now() + 7000;
-      if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+      if (warningRepeatTimerRef.current) {
+        clearTimeout(warningRepeatTimerRef.current);
+        warningRepeatTimerRef.current = null;
+      }
 
       setTranscript(`"${commandText}"`);
       const result = processVoiceCommand(commandText, state, actions);
       setAssistantReply(result.response);
 
-      // Only speak confirmation if a valid vehicle command was matched or explicitly clicked
       if (result.matched || isManual) {
         isSpeakingRef.current = true;
         setIsSpeaking(true);
@@ -300,7 +309,6 @@ export default function VoiceAssistant({
         );
       }
 
-      // Automatically reset user transcript bubble after 4 seconds
       if (clearTranscriptTimerRef.current) clearTimeout(clearTranscriptTimerRef.current);
       clearTranscriptTimerRef.current = window.setTimeout(() => {
         setTranscript("");
@@ -311,7 +319,7 @@ export default function VoiceAssistant({
 
   handleExecuteCommandRef.current = handleExecuteCommand;
 
-  // Watchdog timer: guarantees continuous listening stays permanently alive across silent pauses
+  // Watchdog timer: keep continuous recognition alive
   useEffect(() => {
     const watchdog = setInterval(() => {
       if (keepListeningRef.current) {
@@ -328,89 +336,96 @@ export default function VoiceAssistant({
     return () => clearInterval(watchdog);
   }, [createAndStartRecognition]);
 
-  // Repeating Warning Announcer: Audibly repeats active warnings every 2 seconds until resolved
-  useEffect(() => {
-    if (!state.warnings || state.warnings.length === 0) {
-      if (warningRepeatTimerRef.current) {
-        clearTimeout(warningRepeatTimerRef.current);
-        warningRepeatTimerRef.current = null;
-      }
-      if (hadActiveWarningsRef.current) {
-        hadActiveWarningsRef.current = false;
-        setAssistantReply("✅ All warnings cleared. System status normal.");
-      }
+  // Audible Warning Repeater: Speaks active warnings aloud and repeats every 2 seconds until cleared
+  const announceWarningsLoop = useCallback(() => {
+    if (warningRepeatTimerRef.current) {
+      clearTimeout(warningRepeatTimerRef.current);
+      warningRepeatTimerRef.current = null;
+    }
+
+    const currentWarnings = warningsRef.current;
+    if (!currentWarnings || currentWarnings.length === 0) {
       return;
     }
 
-    hadActiveWarningsRef.current = true;
+    // Check if warnings are temporarily paused (driver speaking or muted)
+    const now = Date.now();
+    if (now < warningPauseUntilRef.current) {
+      const remainingPause = warningPauseUntilRef.current - now;
+      warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, Math.max(600, remainingPause));
+      return;
+    }
 
-    const announceWarningsLoop = () => {
-      if (!state.warnings || state.warnings.length === 0) {
-        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
-        return;
-      }
+    // If currently speaking a command or greeting, wait and check again shortly
+    if (isSpeakingRef.current || (typeof window !== "undefined" && window.speechSynthesis?.speaking)) {
+      warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 500);
+      return;
+    }
 
-      // Check if repeating warnings are paused because driver just gave a command or muted
-      const now = Date.now();
-      if (now < warningPauseUntilRef.current) {
-        const remainingPause = warningPauseUntilRef.current - now;
-        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
-        warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, Math.max(1000, remainingPause));
-        return;
-      }
+    const spokenText = currentWarnings.map(formatWarningForSpeech).join(" ");
+    setAssistantReply(`🚨 ${spokenText}`);
 
-      if (isSpeakingRef.current) {
-        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
-        warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 800);
-        return;
-      }
+    if (voiceEnabledRef.current) {
+      isSpeakingRef.current = true;
+      setIsSpeaking(true);
+      currentTTSUtteranceTextRef.current = spokenText.toLowerCase().trim();
 
-      const spokenText = state.warnings.map(formatWarningForSpeech).join(" ");
-      setAssistantReply(`🚨 ${spokenText}`);
+      speakResponse(
+        spokenText,
+        true,
+        () => {
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          currentTTSUtteranceTextRef.current = "";
 
-      // If voice is enabled and assistant is open / active, speak aloud
-      if (voiceEnabled && (isOpen || keepListeningRef.current)) {
-        isSpeakingRef.current = true;
-        setIsSpeaking(true);
-        currentTTSUtteranceTextRef.current = spokenText.toLowerCase().trim();
-
-        speakResponse(
-          spokenText,
-          true,
-          () => {
-            isSpeakingRef.current = false;
-            setIsSpeaking(false);
-            currentTTSUtteranceTextRef.current = "";
-
-            // Schedule the NEXT warning repeat 2 seconds after speech completes!
+          // Schedule NEXT repeat exactly 2 seconds after speech completes!
+          if (warningsRef.current && warningsRef.current.length > 0) {
             if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
             warningRepeatTimerRef.current = window.setTimeout(() => {
               announceWarningsLoop();
             }, 2000);
-          },
-          () => {
-            isSpeakingRef.current = true;
-            setIsSpeaking(true);
           }
-        );
-      } else {
-        // Voice is muted, re-check in 2 seconds
-        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
-        warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 2000);
-      }
-    };
+        },
+        () => {
+          isSpeakingRef.current = true;
+          setIsSpeaking(true);
+        }
+      );
+    } else {
+      // Voice muted in UI settings, re-check in 2s
+      if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+      warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 2000);
+    }
+  }, []);
 
-    // Trigger immediate announcement on warning state change
-    if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
-    warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 100);
+  // Trigger announcement loop whenever warnings change or appear
+  useEffect(() => {
+    prevWarningsKeyRef.current = warningsKey;
 
-    return () => {
+    if (!warningsKey) {
       if (warningRepeatTimerRef.current) {
         clearTimeout(warningRepeatTimerRef.current);
         warningRepeatTimerRef.current = null;
       }
-    };
-  }, [state.warnings, voiceEnabled, isOpen]);
+      if (hadWarningsRef.current) {
+        hadWarningsRef.current = false;
+        setAssistantReply("✅ All warnings cleared. System status normal.");
+        if (voiceEnabledRef.current) {
+          speakResponse("All warnings cleared. System status normal.", true);
+        }
+      }
+      return;
+    }
+
+    hadWarningsRef.current = true;
+    const spokenText = (state.warnings || []).map(formatWarningForSpeech).join(" ");
+    setAssistantReply(`🚨 ${spokenText}`);
+
+    // If loop isn't active, kick off immediately
+    if (!warningRepeatTimerRef.current && !isSpeakingRef.current) {
+      warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 100);
+    }
+  }, [warningsKey, announceWarningsLoop]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -454,27 +469,34 @@ export default function VoiceAssistant({
     accumulatedSpeechRef.current = "";
     setAssistantReply(GREETING_TEXT);
 
-    // Speak initial greeting while actively listening for user barge-in!
+    // Speak initial greeting, then start speech recognition cleanly!
     if (voiceEnabled) {
       isSpeakingRef.current = true;
       setIsSpeaking(true);
-      currentTTSUtteranceTextRef.current = GREETING_TEXT.toLowerCase().trim();
+      try {
+        recognitionRef.current?.abort();
+      } catch {}
 
       speakResponse(
         GREETING_TEXT,
         true,
         () => {
-          isSpeakingRef.current = false;
-          setIsSpeaking(false);
-          currentTTSUtteranceTextRef.current = "";
+          setTimeout(() => {
+            isSpeakingRef.current = false;
+            setIsSpeaking(false);
+            if (keepListeningRef.current) {
+              createAndStartRecognition();
+            }
+          }, 300);
         },
         () => {
           isSpeakingRef.current = true;
           setIsSpeaking(true);
         }
       );
+    } else {
+      createAndStartRecognition();
     }
-    createAndStartRecognition();
   };
 
   const handleClosePanel = () => {
@@ -492,14 +514,22 @@ export default function VoiceAssistant({
     } catch {}
   };
 
+  const hasWarnings = Boolean(state.warnings && state.warnings.length > 0);
+
   return (
     <div className={`voice-assistant voice-assistant--left ${isOpen ? "voice-assistant--open" : ""}`}>
       {/* 3D Robot Voice Assistant Button on Left Side */}
       <button
         id="voice-assistant-toggle"
-        className={`voice-assistant__robot-btn ${isOpen ? "voice-assistant__robot-btn--active" : ""}`}
+        className={`voice-assistant__robot-btn ${
+          isOpen ? "voice-assistant__robot-btn--active" : ""
+        } ${hasWarnings ? "voice-assistant__robot-btn--warning" : ""}`}
         onClick={handleToggleAssistant}
-        title={isOpen ? "EV Copilot Listening Continuously (Click to turn off)" : "3D EV Copilot Voice Assistant — Click to speak"}
+        title={
+          isOpen
+            ? "EV Copilot Listening Continuously (Click to turn off)"
+            : "3D EV Copilot Voice Assistant — Click to speak"
+        }
         aria-label="3D EV Voice Assistant"
       >
         <div className="voice-assistant__avatar-container">
@@ -508,16 +538,32 @@ export default function VoiceAssistant({
             alt="3D AI Assistant"
             className="voice-assistant__robot-img"
           />
-          {isOpen && <div className="voice-assistant__glow-ring" />}
+          {(isOpen || hasWarnings) && (
+            <div
+              className={`voice-assistant__glow-ring ${
+                hasWarnings ? "voice-assistant__glow-ring--warning" : ""
+              }`}
+            />
+          )}
         </div>
 
         <div className="voice-assistant__meta">
           <div className="voice-assistant__status-row">
-            <span className={`voice-assistant__dot ${isOpen ? "voice-assistant__dot--pulsing" : ""}`} />
+            <span
+              className={`voice-assistant__dot ${
+                hasWarnings
+                  ? "voice-assistant__dot--warning"
+                  : isOpen
+                  ? "voice-assistant__dot--pulsing"
+                  : ""
+              }`}
+            />
             <span className="voice-assistant__name">EV Copilot</span>
           </div>
           <span className="voice-assistant__callout">
-            {isSpeaking
+            {hasWarnings
+              ? "🚨 Active Warning!"
+              : isSpeaking
               ? "Speaking... 🔊"
               : isOpen
               ? "Listening continuously 🎙️"
@@ -525,8 +571,12 @@ export default function VoiceAssistant({
           </span>
         </div>
 
-        {isOpen && (
-          <div className="voice-assistant__waves">
+        {(isOpen || hasWarnings) && (
+          <div
+            className={`voice-assistant__waves ${
+              hasWarnings ? "voice-assistant__waves--warning" : ""
+            }`}
+          >
             <span className="wave wave-1" />
             <span className="wave wave-2" />
             <span className="wave wave-3" />

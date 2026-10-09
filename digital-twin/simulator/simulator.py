@@ -143,18 +143,18 @@ class Simulator:
 
         # Bike-specific warnings
         if self.vehicle_type == "BIKE":
-            if self.side_stand and self.vehicle.speed > 0:
+            if self.side_stand:
                 warnings.append("DANGER: SIDE STAND DOWN")
-            if not self.helmet_on and self.vehicle.speed > 0:
+            if not self.helmet_on and (self.vehicle.speed > 0 or self.throttle > 0):
                 warnings.append("WARNING: HELMET NOT DETECTED")
 
         # Car-specific warnings
         if self.vehicle_type == "CAR":
-            if not self.seat_belt and self.vehicle.speed > 0:
+            if not self.seat_belt and (self.vehicle.speed > 0 or self.throttle > 0):
                 warnings.append("WARNING: SEAT BELT NOT FASTENED")
-            if not self.doors_locked and self.vehicle.speed > 10:
+            if not self.doors_locked and self.vehicle.speed > 5:
                 warnings.append("WARNING: DOORS UNLOCKED")
-            if self.parking_brake and self.vehicle.speed > 5:
+            if self.parking_brake and (self.vehicle.speed > 0 or self.throttle > 0):
                 warnings.append("WARNING: PARKING BRAKE ENGAGED")
 
         return warnings
