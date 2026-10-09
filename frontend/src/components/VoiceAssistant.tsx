@@ -82,19 +82,52 @@ export default function VoiceAssistant({
     },
   };
 
-  // Helper to distinguish user commands from assistant self-echo
-  const isLikelyVehicleCommand = (text: string) => {
-    const cmdKeywords = [
-      "indicator", "signal", "blinker", "light", "headlight", "lamp",
-      "sport", "eco", "normal", "mode", "drive",
-      "brake", "stop", "slow", "accelerate", "fast", "speed",
-      "stand", "hazard", "battery", "soc", "range", "temp", "temperature",
-      "quiet", "mute", "silence", "shut up",
-      "door", "lock", "unlock", "belt", "seatbelt", "climate", "ac",
-      "reset", "warning", "warnings", "alert"
-    ];
-    return cmdKeywords.some((kw) => text.includes(kw));
-  };
+  // Check if speech captured by the mic is the device's own audio playing out of the speaker
+  const isDeviceAudioEcho = useCallback((recognizedText: string): boolean => {
+    const currentTTS = currentTTSUtteranceTextRef.current;
+    if (!currentTTS) return false;
+
+    const cleanRec = recognizedText.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+    const cleanSpoken = currentTTS.toLowerCase().replace(/[^a-z0-9\s]/g, "").trim();
+
+    if (!cleanRec || !cleanSpoken) return false;
+
+    // Distinct vehicle commands that are never part of assistant warnings or greetings
+    const isDistinctUserCommand = (text: string) => {
+      const distinctKeywords = [
+        "left indicator", "right indicator", "turn on", "turn off",
+        "headlight", "sport mode", "eco mode", "normal mode",
+        "accelerate", "brake", "hazard", "speed",
+        "what is my", "battery", "range", "temperature",
+        "mute", "silence", "quiet", "stop talking", "shut up",
+        "door", "seatbelt", "reset"
+      ];
+      return distinctKeywords.some((kw) => text.includes(kw));
+    };
+
+    if (isDistinctUserCommand(cleanRec) && !cleanSpoken.includes(cleanRec)) {
+      return false; // Definitely real user input!
+    }
+
+    // 1. Direct substring match (e.g. mic hears words from current warning)
+    if (cleanSpoken.includes(cleanRec)) {
+      return true;
+    }
+
+    // 2. Token overlap match (e.g. mic hears words matching >= 40% of the assistant's speech)
+    const recWords = cleanRec.split(/\s+/).filter((w) => w.length > 2);
+    const spokenWords = new Set(cleanSpoken.split(/\s+/).filter((w) => w.length > 2));
+
+    if (recWords.length === 0) return true;
+
+    let matchCount = 0;
+    for (const w of recWords) {
+      if (spokenWords.has(w)) matchCount++;
+    }
+
+    const overlap = matchCount / recWords.length;
+    return overlap >= 0.4;
+  }, []);
 
   // Recreate and start speech recognition instance safely (Full-Duplex continuous)
   const createAndStartRecognition = useCallback(() => {
@@ -137,6 +170,14 @@ export default function VoiceAssistant({
         }
       }
 
+      const rawNew = (currentFinal || currentInterim).trim();
+      if (!rawNew) return;
+
+      // Echo Filter: Check if incoming speech is the device's own speaker output
+      if (isDeviceAudioEcho(rawNew)) {
+        return;
+      }
+
       if (currentFinal.trim()) {
         accumulatedSpeechRef.current = (accumulatedSpeechRef.current + " " + currentFinal).trim();
       }
@@ -144,22 +185,14 @@ export default function VoiceAssistant({
       const activeText = (accumulatedSpeechRef.current + " " + currentInterim).trim();
       if (!activeText) return;
 
-      const lowerActive = activeText.toLowerCase();
-      const currentTTS = currentTTSUtteranceTextRef.current;
-
-      // Filter out pure self-echo of the robot's own speech output
-      if (
-        currentTTS &&
-        currentTTS.length > 5 &&
-        currentTTS.includes(lowerActive) &&
-        !isLikelyVehicleCommand(lowerActive)
-      ) {
+      if (isDeviceAudioEcho(activeText)) {
+        accumulatedSpeechRef.current = "";
         return;
       }
 
       setTranscript(activeText);
 
-      // BARGE-IN: If user speaks while Copilot is talking, immediately cancel assistant speech!
+      // BARGE-IN: If user speaks while Copilot is talking, cancel assistant speaker audio!
       if (isSpeakingRef.current || (typeof window !== "undefined" && window.speechSynthesis?.speaking)) {
         try {
           window.speechSynthesis?.cancel();
@@ -178,7 +211,9 @@ export default function VoiceAssistant({
         const fullPhrase = accumulatedSpeechRef.current.trim();
         if (fullPhrase && fullPhrase.length >= 3) {
           accumulatedSpeechRef.current = "";
-          handleExecuteCommandRef.current(fullPhrase, false);
+          if (!isDeviceAudioEcho(fullPhrase)) {
+            handleExecuteCommandRef.current(fullPhrase, false);
+          }
         }
       }, 700);
     };
@@ -202,7 +237,9 @@ export default function VoiceAssistant({
         const fullPhrase = accumulatedSpeechRef.current.trim();
         accumulatedSpeechRef.current = "";
         if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
-        handleExecuteCommandRef.current(fullPhrase, false);
+        if (!isDeviceAudioEcho(fullPhrase)) {
+          handleExecuteCommandRef.current(fullPhrase, false);
+        }
       }
 
       // Seamlessly keep listening continuously without dropping
@@ -221,7 +258,7 @@ export default function VoiceAssistant({
         console.debug("[VoiceAssistant] Start attempt:", err);
       }
     }
-  }, []);
+  }, [isDeviceAudioEcho]);
 
   // Execute and process a command (from mic or suggestion click)
   const handleExecuteCommand = useCallback(
