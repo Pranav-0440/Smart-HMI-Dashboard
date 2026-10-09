@@ -972,6 +972,8 @@ body {
 
 /* ══════════════════════════════════════════════════════════════
    RESPONSIVE & MOBILE PWA STYLES
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE & MOBILE PWA STYLES
    ══════════════════════════════════════════════════════════════ */
 
 @media (max-width: 1024px) {
@@ -980,7 +982,7 @@ body {
     grid-template-rows: auto;
   }
 
-  .dashboard__col--center {
+  .dashboard__center {
     grid-column: 1 / -1;
     order: -1;
   }
@@ -1038,17 +1040,25 @@ body {
   }
 
   .dashboard__topbar {
-    padding: 8px 14px;
+    padding: 8px 12px;
     padding-top: max(8px, env(safe-area-inset-top));
-    flex-wrap: wrap;
-    gap: 8px;
+    gap: 6px;
+  }
+
+  .dashboard__vehicle-name {
+    font-size: 0.85rem;
+  }
+
+  .dashboard__status {
+    gap: 6px;
+    font-size: 0.75rem;
   }
 
   .dashboard__main {
     display: flex;
     flex-direction: column;
-    padding: 12px;
-    gap: 12px;
+    padding: 10px 12px;
+    gap: 10px;
   }
 
   .dashboard__main--car {
@@ -1056,67 +1066,135 @@ body {
     flex-direction: column;
   }
 
-  .dashboard__col {
+  .dashboard__left,
+  .dashboard__center,
+  .dashboard__right {
     width: 100%;
-    gap: 12px;
-  }
-
-  .card {
-    padding: 14px;
+    gap: 8px;
   }
 
   .speedometer {
-    max-width: 320px;
     margin: 0 auto;
   }
 
-  .speedometer__value {
-    font-size: 3.2rem;
+  /* Mobile Voice Assistant */
+  .voice-assistant {
+    width: 100%;
   }
 
-  .battery-gauge__ring {
-    width: 140px;
-    height: 140px;
+  .voice-assistant__robot-btn {
+    padding: 8px 14px 8px 10px;
+    min-height: 44px;
+    border-radius: 9999px;
   }
 
-  .battery-gauge__soc {
-    font-size: 2.2rem;
+  .voice-assistant__robot-img {
+    width: 32px;
+    height: 32px;
   }
 
+  .voice-assistant__avatar-container {
+    width: 34px;
+    height: 34px;
+  }
+
+  .voice-assistant__name {
+    font-size: 0.85rem;
+  }
+
+  .voice-assistant__callout {
+    font-size: 0.68rem;
+  }
+
+  .voice-assistant__panel {
+    padding: 10px 12px;
+    border-radius: var(--radius-md);
+  }
+
+  .voice-assistant__chips {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+  }
+
+  .voice-assistant__chip {
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    flex-shrink: 0;
+  }
+
+  /* Vehicle Controls */
   .vehicle-controls {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    padding: 6px 12px;
   }
 
   .control-btn {
     min-height: 48px;
-    padding: 8px 4px;
+    padding: 6px 4px;
+    font-size: 0.62rem;
   }
 
+  .control-btn__icon {
+    font-size: 1.15rem;
+  }
+
+  /* Drive Modes */
   .drive-modes {
+    display: flex;
     gap: 8px;
+    padding: 6px 12px;
   }
 
-  .drive-mode-btn {
-    padding: 10px 8px;
-    font-size: 0.85rem;
+  .drive-modes__btn {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 10px;
+    font-size: 0.78rem;
   }
 
+  /* Alerts */
+  .alerts {
+    padding: 4px 12px;
+  }
+
+  .alerts__item {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+  }
+
+  /* Simulation Drawer */
   .sim-control {
     position: sticky;
     bottom: 0;
     z-index: 1000;
-    margin: 12px -12px -12px -12px;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    padding-bottom: max(12px, env(safe-area-inset-bottom));
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
     backdrop-filter: blur(24px);
-    background: rgba(10, 14, 23, 0.95);
+    background: rgba(10, 14, 23, 0.96);
     border-top: 1px solid var(--border-glass);
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6);
+  }
+
+  .sim-control__body {
+    padding: 8px 12px 10px;
+    gap: 8px 16px;
+  }
+
+  .sim-control__row {
+    min-width: 100%;
   }
 
   .sim-control__slider {
-    height: 32px;
+    height: 6px;
+  }
+
+  .sim-control__slider::-webkit-slider-thumb {
+    width: 18px;
+    height: 18px;
   }
 }
 
@@ -1131,16 +1209,16 @@ body {
   }
 
   .vehicle-controls {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(3, 1fr);
   }
 
   .dashboard__status {
-    gap: 8px;
-    font-size: 0.75rem;
+    gap: 4px;
+    font-size: 0.7rem;
   }
 
   .dashboard__vehicle-name {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
   }
 }
 
