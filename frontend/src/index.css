@@ -290,9 +290,9 @@ body {
 .dashboard__main {
   display: grid;
   grid-template-columns: 1fr 1.5fr 1fr;
-  gap: 16px;
-  padding: 16px 20px;
-  flex: 1;
+  gap: 12px;
+  padding: 12px 18px 6px;
+  flex: 1 0 auto;
   min-height: 0;
   align-items: start;
 }
@@ -305,14 +305,14 @@ body {
 .dashboard__right {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .dashboard__center {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -333,7 +333,7 @@ body {
   background: var(--bg-glass);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
-  padding: 16px;
+  padding: 12px 14px;
   backdrop-filter: blur(8px);
 }
 
@@ -341,19 +341,19 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .battery-gauge__cap {
-  width: 24px;
-  height: 6px;
+  width: 20px;
+  height: 4px;
   background: rgba(255,255,255,0.15);
   border-radius: 2px 2px 0 0;
 }
 
 .battery-gauge__body {
-  width: 64px;
-  height: 120px;
+  width: 56px;
+  height: 75px;
   border: 2px solid rgba(255,255,255,0.15);
   border-radius: 4px;
   position: relative;
@@ -375,30 +375,30 @@ body {
 .battery-gauge__percentage {
   position: relative;
   z-index: 1;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 800;
   text-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 
 .battery-gauge__charging-icon {
   position: absolute;
-  top: 4px;
+  top: 3px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   animation: pulse 1s ease-in-out infinite;
 }
 
 .battery-gauge__stats {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .battery-gauge__stat {
   display: flex;
   justify-content: space-between;
-  font-size: 0.8rem;
+  font-size: 0.76rem;
 }
 
 .battery-gauge__label {
@@ -525,11 +525,11 @@ body {
 .range-display {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--bg-glass);
   border: 1px solid var(--border-glass);
   border-radius: var(--radius-md);
-  padding: 12px 20px;
+  padding: 8px 14px;
   backdrop-filter: blur(8px);
 }
 
@@ -1151,9 +1151,9 @@ body {
 .voice-assistant {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* ── 3D Robot Capsule Button (Matching Reference Image) ─────── */
@@ -1161,16 +1161,16 @@ body {
 .voice-assistant__robot-btn {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: linear-gradient(135deg, rgba(13, 27, 42, 0.9) 0%, rgba(10, 16, 28, 0.95) 100%);
   border: 1.5px solid rgba(0, 229, 255, 0.38);
   border-radius: 9999px;
-  padding: 8px 16px 8px 8px;
+  padding: 6px 14px 6px 8px;
   cursor: pointer;
   backdrop-filter: blur(16px);
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.4),
-    0 0 16px rgba(0, 229, 255, 0.15);
+    0 4px 16px rgba(0, 0, 0, 0.4),
+    0 0 14px rgba(0, 229, 255, 0.15);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   text-align: left;
@@ -1200,8 +1200,8 @@ body {
 
 .voice-assistant__avatar-container {
   position: relative;
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1209,12 +1209,12 @@ body {
 }
 
 .voice-assistant__robot-img {
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--accent-cyan);
-  box-shadow: 0 0 14px rgba(0, 229, 255, 0.6);
+  box-shadow: 0 0 10px rgba(0, 229, 255, 0.6);
   animation: floatRobot 3.2s ease-in-out infinite;
   background: rgba(0, 229, 255, 0.12);
   display: block;
@@ -1235,19 +1235,19 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
 }
 
 .voice-assistant__status-row {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
 }
 
 .voice-assistant__dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #00e676;
   box-shadow: 0 0 8px #00e676;
@@ -1259,7 +1259,7 @@ body {
 }
 
 .voice-assistant__name {
-  font-size: 0.96rem;
+  font-size: 0.9rem;
   font-weight: 800;
   color: #fff;
   letter-spacing: 0.02em;
@@ -1269,7 +1269,7 @@ body {
 }
 
 .voice-assistant__callout {
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   color: rgba(240, 244, 248, 0.75);
   font-weight: 500;
   white-space: nowrap;
@@ -1283,14 +1283,14 @@ body {
   display: flex;
   align-items: center;
   gap: 3px;
-  height: 16px;
+  height: 14px;
   padding-right: 2px;
   flex-shrink: 0;
 }
 
 .voice-assistant__waves .wave {
   width: 3px;
-  height: 6px;
+  height: 5px;
   background: var(--accent-cyan);
   border-radius: 2px;
   animation: waveAnim 0.8s ease-in-out infinite;
@@ -1306,15 +1306,15 @@ body {
 .voice-assistant__panel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  background: linear-gradient(180deg, rgba(17, 24, 39, 0.94) 0%, rgba(10, 16, 28, 0.98) 100%);
+  gap: 8px;
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.96) 0%, rgba(10, 16, 28, 0.98) 100%);
   border: 1.5px solid rgba(0, 229, 255, 0.35);
-  border-radius: var(--radius-lg);
-  padding: 14px;
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
   backdrop-filter: blur(20px);
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.6),
-    0 0 20px rgba(0, 229, 255, 0.18);
+    0 8px 24px rgba(0, 0, 0, 0.6),
+    0 0 16px rgba(0, 229, 255, 0.15);
   animation: slideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
 }
@@ -1323,15 +1323,15 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--border-glass);
 }
 
 .voice-assistant__title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.82rem;
+  gap: 6px;
+  font-size: 0.76rem;
   font-weight: 700;
   color: var(--text-primary);
 }
@@ -1340,9 +1340,9 @@ body {
   background: rgba(0, 229, 255, 0.15);
   border: 1px solid rgba(0, 229, 255, 0.4);
   color: var(--accent-cyan);
-  padding: 2px 8px;
+  padding: 1px 6px;
   border-radius: 9999px;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1351,21 +1351,21 @@ body {
 .voice-assistant__actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .voice-assistant__btn-icon {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid var(--border-glass);
   color: var(--text-secondary);
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.74rem;
   transition: var(--transition);
 }
 
@@ -1386,21 +1386,21 @@ body {
 .voice-assistant__body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 160px;
+  gap: 6px;
+  max-height: 80px;
   overflow-y: auto;
 }
 
 .voice-assistant__ai-bubble {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: flex-start;
   background: rgba(0, 229, 255, 0.08);
-  border: 1px solid rgba(0, 229, 255, 0.25);
+  border: 1px solid rgba(0, 229, 255, 0.22);
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  font-size: 0.8rem;
-  line-height: 1.4;
+  padding: 6px 8px;
+  font-size: 0.74rem;
+  line-height: 1.35;
   color: var(--text-primary);
 }
 
@@ -1409,8 +1409,8 @@ body {
 }
 
 .voice-assistant__ai-mini-img {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   border: 1px solid var(--accent-cyan);
   object-fit: cover;
@@ -1423,22 +1423,22 @@ body {
 
 .voice-assistant__user-bubble {
   align-self: flex-end;
-  max-width: 90%;
+  max-width: 92%;
   background: rgba(68, 138, 255, 0.2);
-  border: 1px solid rgba(68, 138, 255, 0.4);
+  border: 1px solid rgba(68, 138, 255, 0.35);
   border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  font-size: 0.78rem;
+  padding: 4px 8px;
+  font-size: 0.72rem;
   color: #fff;
 }
 
 .voice-assistant__bubble-label {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.58rem;
   color: var(--accent-blue);
   font-weight: 700;
   text-transform: uppercase;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 /* ── Suggestions Chips ─────────────────────────────────────── */
@@ -1446,13 +1446,13 @@ body {
 .voice-assistant__footer {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding-top: 6px;
+  gap: 4px;
+  padding-top: 4px;
   border-top: 1px solid var(--border-glass);
 }
 
 .voice-assistant__suggestions-title {
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1462,7 +1462,7 @@ body {
 .voice-assistant__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .voice-assistant__chip {
@@ -1470,8 +1470,8 @@ body {
   border: 1px solid var(--border-glass);
   color: var(--text-secondary);
   border-radius: 9999px;
-  padding: 4px 9px;
-  font-size: 0.72rem;
+  padding: 2px 7px;
+  font-size: 0.68rem;
   cursor: pointer;
   transition: var(--transition);
   font-family: inherit;
@@ -1505,8 +1505,9 @@ body {
 
 @keyframes waveAnim {
   0%, 100% { height: 4px; }
-  50% { height: 16px; }
+  50% { height: 14px; }
 }
+
 
 
 
