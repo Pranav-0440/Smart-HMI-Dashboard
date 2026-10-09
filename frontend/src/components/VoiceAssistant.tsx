@@ -64,6 +64,10 @@ export default function VoiceAssistant({
   const handleExecuteCommandRef = useRef<(cmd: string, isManual?: boolean) => void>(() => {});
   const accumulatedSpeechRef = useRef<string>("");
   const speechDebounceTimerRef = useRef<number | null>(null);
+  const warningRepeatTimerRef = useRef<number | null>(null);
+  const hadActiveWarningsRef = useRef<boolean>(false);
+  const currentTTSUtteranceTextRef = useRef<string>("");
+  const warningPauseUntilRef = useRef<number>(0);
 
   const actions: VoiceAssistantActions = {
     onToggleControl: onControl,
@@ -72,11 +76,29 @@ export default function VoiceAssistant({
     onSetBrake: onBrake,
     onSetSlope: onSlope,
     onReset,
+    onMuteWarnings: (durationMs = 30000) => {
+      warningPauseUntilRef.current = Date.now() + durationMs;
+      if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+    },
   };
 
-  // Recreate and start speech recognition instance safely
+  // Helper to distinguish user commands from assistant self-echo
+  const isLikelyVehicleCommand = (text: string) => {
+    const cmdKeywords = [
+      "indicator", "signal", "blinker", "light", "headlight", "lamp",
+      "sport", "eco", "normal", "mode", "drive",
+      "brake", "stop", "slow", "accelerate", "fast", "speed",
+      "stand", "hazard", "battery", "soc", "range", "temp", "temperature",
+      "quiet", "mute", "silence", "shut up",
+      "door", "lock", "unlock", "belt", "seatbelt", "climate", "ac",
+      "reset", "warning", "warnings", "alert"
+    ];
+    return cmdKeywords.some((kw) => text.includes(kw));
+  };
+
+  // Recreate and start speech recognition instance safely (Full-Duplex continuous)
   const createAndStartRecognition = useCallback(() => {
-    if (!keepListeningRef.current || isSpeakingRef.current || typeof window === "undefined") return;
+    if (!keepListeningRef.current || typeof window === "undefined") return;
 
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
@@ -103,9 +125,6 @@ export default function VoiceAssistant({
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event: any) => {
-      // Discard input while the copilot is speaking to eliminate acoustic feedback loop
-      if (isSpeakingRef.current) return;
-
       let currentInterim = "";
       let currentFinal = "";
 
@@ -123,20 +142,45 @@ export default function VoiceAssistant({
       }
 
       const activeText = (accumulatedSpeechRef.current + " " + currentInterim).trim();
-      if (activeText) {
-        setTranscript(activeText);
+      if (!activeText) return;
+
+      const lowerActive = activeText.toLowerCase();
+      const currentTTS = currentTTSUtteranceTextRef.current;
+
+      // Filter out pure self-echo of the robot's own speech output
+      if (
+        currentTTS &&
+        currentTTS.length > 5 &&
+        currentTTS.includes(lowerActive) &&
+        !isLikelyVehicleCommand(lowerActive)
+      ) {
+        return;
       }
 
-      // Sentence Debouncer: Wait 750ms of silence after speaking to gather the FULL sentence
-      // (Fixes the mobile issue where mobile Chrome emits first word immediately as isFinal)
+      setTranscript(activeText);
+
+      // BARGE-IN: If user speaks while Copilot is talking, immediately cancel assistant speech!
+      if (isSpeakingRef.current || (typeof window !== "undefined" && window.speechSynthesis?.speaking)) {
+        try {
+          window.speechSynthesis?.cancel();
+        } catch {}
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        currentTTSUtteranceTextRef.current = "";
+        // Pause repeating warnings for 7 seconds so driver command is handled cleanly
+        warningPauseUntilRef.current = Date.now() + 7000;
+        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+      }
+
+      // Sentence Debouncer: Wait 700ms of silence to accumulate complete sentence
       if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
       speechDebounceTimerRef.current = window.setTimeout(() => {
         const fullPhrase = accumulatedSpeechRef.current.trim();
-        if (fullPhrase && fullPhrase.length >= 3 && !isSpeakingRef.current) {
+        if (fullPhrase && fullPhrase.length >= 3) {
           accumulatedSpeechRef.current = "";
           handleExecuteCommandRef.current(fullPhrase, false);
         }
-      }, 750);
+      }, 700);
     };
 
     recognition.onerror = (event: any) => {
@@ -146,7 +190,7 @@ export default function VoiceAssistant({
         setAssistantReply("Microphone access denied. Please allow microphone permission in your browser.");
         return;
       }
-      if (keepListeningRef.current && !isSpeakingRef.current) {
+      if (keepListeningRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         restartTimerRef.current = window.setTimeout(createAndStartRecognition, 200);
       }
@@ -154,17 +198,17 @@ export default function VoiceAssistant({
 
     recognition.onend = () => {
       // If there was any pending accumulated speech when recognition ended, process it
-      if (accumulatedSpeechRef.current.trim().length >= 3 && !isSpeakingRef.current) {
+      if (accumulatedSpeechRef.current.trim().length >= 3) {
         const fullPhrase = accumulatedSpeechRef.current.trim();
         accumulatedSpeechRef.current = "";
         if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
         handleExecuteCommandRef.current(fullPhrase, false);
       }
 
-      // Seamlessly keep listening on mobile without dropping
-      if (keepListeningRef.current && !isSpeakingRef.current) {
+      // Seamlessly keep listening continuously without dropping
+      if (keepListeningRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
-        restartTimerRef.current = window.setTimeout(createAndStartRecognition, 150);
+        restartTimerRef.current = window.setTimeout(createAndStartRecognition, 100);
       }
     };
 
@@ -182,33 +226,35 @@ export default function VoiceAssistant({
   // Execute and process a command (from mic or suggestion click)
   const handleExecuteCommand = useCallback(
     (commandText: string, isManual: boolean = false) => {
-      if (isSpeakingRef.current) return;
+      // Immediately cancel any previous speech synthesis
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {}
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      currentTTSUtteranceTextRef.current = "";
+
+      // Pause repeating warning alerts for 7 seconds so driver command confirmation is heard
+      warningPauseUntilRef.current = Date.now() + 7000;
+      if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
 
       setTranscript(`"${commandText}"`);
       const result = processVoiceCommand(commandText, state, actions);
       setAssistantReply(result.response);
 
       // Only speak confirmation if a valid vehicle command was matched or explicitly clicked
-      // (This avoids talking over the driver on random mobile background noise / partial words)
       if (result.matched || isManual) {
         isSpeakingRef.current = true;
         setIsSpeaking(true);
-        try {
-          recognitionRef.current?.abort();
-        } catch {}
+        currentTTSUtteranceTextRef.current = result.response.toLowerCase().trim();
 
         speakResponse(
           result.response,
           voiceEnabled,
           () => {
-            // Post-speech 300ms acoustic grace period so speaker sound decays before mic unpauses
-            setTimeout(() => {
-              isSpeakingRef.current = false;
-              setIsSpeaking(false);
-              if (keepListeningRef.current) {
-                createAndStartRecognition();
-              }
-            }, 300);
+            isSpeakingRef.current = false;
+            setIsSpeaking(false);
+            currentTTSUtteranceTextRef.current = "";
           },
           () => {
             isSpeakingRef.current = true;
@@ -223,7 +269,7 @@ export default function VoiceAssistant({
         setTranscript("");
       }, 4000);
     },
-    [state, voiceEnabled, createAndStartRecognition]
+    [state, voiceEnabled]
   );
 
   handleExecuteCommandRef.current = handleExecuteCommand;
@@ -231,7 +277,7 @@ export default function VoiceAssistant({
   // Watchdog timer: guarantees continuous listening stays permanently alive across silent pauses
   useEffect(() => {
     const watchdog = setInterval(() => {
-      if (keepListeningRef.current && !isSpeakingRef.current) {
+      if (keepListeningRef.current) {
         try {
           if (!recognitionRef.current) {
             createAndStartRecognition();
@@ -244,9 +290,6 @@ export default function VoiceAssistant({
 
     return () => clearInterval(watchdog);
   }, [createAndStartRecognition]);
-
-  const warningRepeatTimerRef = useRef<number | null>(null);
-  const hadActiveWarningsRef = useRef<boolean>(false);
 
   // Repeating Warning Announcer: Audibly repeats active warnings every 2 seconds until resolved
   useEffect(() => {
@@ -270,8 +313,16 @@ export default function VoiceAssistant({
         return;
       }
 
+      // Check if repeating warnings are paused because driver just gave a command or muted
+      const now = Date.now();
+      if (now < warningPauseUntilRef.current) {
+        const remainingPause = warningPauseUntilRef.current - now;
+        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+        warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, Math.max(1000, remainingPause));
+        return;
+      }
+
       if (isSpeakingRef.current) {
-        // If currently speaking user command or greeting, retry in 800ms
         if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
         warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 800);
         return;
@@ -284,9 +335,7 @@ export default function VoiceAssistant({
       if (voiceEnabled && (isOpen || keepListeningRef.current)) {
         isSpeakingRef.current = true;
         setIsSpeaking(true);
-        try {
-          recognitionRef.current?.abort();
-        } catch {}
+        currentTTSUtteranceTextRef.current = spokenText.toLowerCase().trim();
 
         speakResponse(
           spokenText,
@@ -294,9 +343,7 @@ export default function VoiceAssistant({
           () => {
             isSpeakingRef.current = false;
             setIsSpeaking(false);
-            if (keepListeningRef.current) {
-              createAndStartRecognition();
-            }
+            currentTTSUtteranceTextRef.current = "";
 
             // Schedule the NEXT warning repeat 2 seconds after speech completes!
             if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
@@ -326,7 +373,7 @@ export default function VoiceAssistant({
         warningRepeatTimerRef.current = null;
       }
     };
-  }, [state.warnings, voiceEnabled, isOpen, createAndStartRecognition]);
+  }, [state.warnings, voiceEnabled, isOpen]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -370,34 +417,27 @@ export default function VoiceAssistant({
     accumulatedSpeechRef.current = "";
     setAssistantReply(GREETING_TEXT);
 
-    // Speak initial greeting, then start speech recognition cleanly!
+    // Speak initial greeting while actively listening for user barge-in!
     if (voiceEnabled) {
       isSpeakingRef.current = true;
       setIsSpeaking(true);
-      try {
-        recognitionRef.current?.abort();
-      } catch {}
+      currentTTSUtteranceTextRef.current = GREETING_TEXT.toLowerCase().trim();
 
       speakResponse(
         GREETING_TEXT,
         true,
         () => {
-          setTimeout(() => {
-            isSpeakingRef.current = false;
-            setIsSpeaking(false);
-            if (keepListeningRef.current) {
-              createAndStartRecognition();
-            }
-          }, 300);
+          isSpeakingRef.current = false;
+          setIsSpeaking(false);
+          currentTTSUtteranceTextRef.current = "";
         },
         () => {
           isSpeakingRef.current = true;
           setIsSpeaking(true);
         }
       );
-    } else {
-      createAndStartRecognition();
     }
+    createAndStartRecognition();
   };
 
   const handleClosePanel = () => {

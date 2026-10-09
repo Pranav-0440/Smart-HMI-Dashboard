@@ -12,6 +12,7 @@ export interface VoiceAssistantActions {
   onSetBrake: (val: number) => void;
   onSetSlope: (val: number) => void;
   onReset: () => void;
+  onMuteWarnings?: (durationMs?: number) => void;
 }
 
 export interface VoiceCommandResult {
@@ -325,6 +326,26 @@ export function processVoiceCommand(
       matched: true,
       actionName: "brake",
       response: "Applying regenerative braking.",
+    };
+  }
+
+  // ── MUTE / SILENCE WARNINGS ──
+  if (
+    text.includes("mute") ||
+    text.includes("silence") ||
+    text.includes("quiet") ||
+    text.includes("stop talking") ||
+    text.includes("shut up") ||
+    text.includes("pause warning") ||
+    text.includes("stop warning")
+  ) {
+    if (actions.onMuteWarnings) {
+      actions.onMuteWarnings(30000);
+    }
+    return {
+      matched: true,
+      actionName: "mute_warnings",
+      response: "Warnings muted for 30 seconds.",
     };
   }
 
