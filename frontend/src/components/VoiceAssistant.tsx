@@ -62,7 +62,6 @@ export default function VoiceAssistant({
   const restartTimerRef = useRef<number | null>(null);
   const clearTranscriptTimerRef = useRef<number | null>(null);
   const handleExecuteCommandRef = useRef<(cmd: string, isManual?: boolean) => void>(() => {});
-  const lastSpokenWarningsRef = useRef<{ [key: string]: number }>({});
   const accumulatedSpeechRef = useRef<string>("");
   const speechDebounceTimerRef = useRef<number | null>(null);
 
@@ -246,30 +245,42 @@ export default function VoiceAssistant({
     return () => clearInterval(watchdog);
   }, [createAndStartRecognition]);
 
-  // Proactive Warning Announcer: Audibly speaks critical vehicle alerts to the driver
+  const warningRepeatTimerRef = useRef<number | null>(null);
+  const hadActiveWarningsRef = useRef<boolean>(false);
+
+  // Repeating Warning Announcer: Audibly repeats active warnings every 2 seconds until resolved
   useEffect(() => {
     if (!state.warnings || state.warnings.length === 0) {
-      lastSpokenWarningsRef.current = {};
+      if (warningRepeatTimerRef.current) {
+        clearTimeout(warningRepeatTimerRef.current);
+        warningRepeatTimerRef.current = null;
+      }
+      if (hadActiveWarningsRef.current) {
+        hadActiveWarningsRef.current = false;
+        setAssistantReply("✅ All warnings cleared. System status normal.");
+      }
       return;
     }
 
-    const now = Date.now();
-    const COOLDOWN_MS = 25000; // 25s cooldown per warning before repeating
+    hadActiveWarningsRef.current = true;
 
-    const warningsToAnnounce = state.warnings.filter((w) => {
-      const lastSpoken = lastSpokenWarningsRef.current[w] || 0;
-      return now - lastSpoken > COOLDOWN_MS;
-    });
+    const announceWarningsLoop = () => {
+      if (!state.warnings || state.warnings.length === 0) {
+        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+        return;
+      }
 
-    if (warningsToAnnounce.length > 0 && !isSpeakingRef.current) {
-      warningsToAnnounce.forEach((w) => {
-        lastSpokenWarningsRef.current[w] = now;
-      });
+      if (isSpeakingRef.current) {
+        // If currently speaking user command or greeting, retry in 800ms
+        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+        warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 800);
+        return;
+      }
 
-      const spokenText = warningsToAnnounce.map(formatWarningForSpeech).join(" ");
+      const spokenText = state.warnings.map(formatWarningForSpeech).join(" ");
       setAssistantReply(`🚨 ${spokenText}`);
 
-      // If voice is enabled and assistant is open or listening, speak warning out loud!
+      // If voice is enabled and assistant is open / active, speak aloud
       if (voiceEnabled && (isOpen || keepListeningRef.current)) {
         isSpeakingRef.current = true;
         setIsSpeaking(true);
@@ -281,21 +292,40 @@ export default function VoiceAssistant({
           spokenText,
           true,
           () => {
-            setTimeout(() => {
-              isSpeakingRef.current = false;
-              setIsSpeaking(false);
-              if (keepListeningRef.current) {
-                createAndStartRecognition();
-              }
-            }, 300);
+            isSpeakingRef.current = false;
+            setIsSpeaking(false);
+            if (keepListeningRef.current) {
+              createAndStartRecognition();
+            }
+
+            // Schedule the NEXT warning repeat 2 seconds after speech completes!
+            if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+            warningRepeatTimerRef.current = window.setTimeout(() => {
+              announceWarningsLoop();
+            }, 2000);
           },
           () => {
             isSpeakingRef.current = true;
             setIsSpeaking(true);
           }
         );
+      } else {
+        // Voice is muted, re-check in 2 seconds
+        if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+        warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 2000);
       }
-    }
+    };
+
+    // Trigger immediate announcement on warning state change
+    if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
+    warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 100);
+
+    return () => {
+      if (warningRepeatTimerRef.current) {
+        clearTimeout(warningRepeatTimerRef.current);
+        warningRepeatTimerRef.current = null;
+      }
+    };
   }, [state.warnings, voiceEnabled, isOpen, createAndStartRecognition]);
 
   // Clean up on unmount
@@ -303,6 +333,7 @@ export default function VoiceAssistant({
     return () => {
       keepListeningRef.current = false;
       isSpeakingRef.current = false;
+      if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
       if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       if (clearTranscriptTimerRef.current) clearTimeout(clearTranscriptTimerRef.current);
@@ -322,6 +353,7 @@ export default function VoiceAssistant({
       setIsOpen(false);
       setIsSpeaking(false);
       accumulatedSpeechRef.current = "";
+      if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
       if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
       try {
@@ -374,6 +406,7 @@ export default function VoiceAssistant({
     setIsOpen(false);
     setIsSpeaking(false);
     accumulatedSpeechRef.current = "";
+    if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
     if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
     if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
     try {
