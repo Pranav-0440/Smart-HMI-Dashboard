@@ -316,8 +316,72 @@ body {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   SPEEDOMETER
+   SPEEDOMETER & INSTRUMENT CLUSTER
    ══════════════════════════════════════════════════════════════ */
+
+.speedometer-cluster {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.speedometer-indicators {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 4px 16px;
+  background: rgba(17, 24, 39, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  backdrop-filter: blur(8px);
+  min-height: 30px;
+}
+
+.indicator-arrow {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.15);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.indicator-arrow--blinking {
+  color: #00e676 !important;
+  text-shadow: 0 0 14px #00e676, 0 0 24px #00e676;
+  animation: indicatorFlash 0.55s ease-in-out infinite alternate !important;
+}
+
+.indicator-icon {
+  font-size: 1rem;
+  user-select: none;
+}
+
+.indicator-icon--headlight {
+  filter: drop-shadow(0 0 8px #00e5ff);
+}
+
+.indicator-icon--hazard {
+  color: #ff1744;
+}
+
+.indicator-icon--blinking {
+  animation: indicatorFlash 0.55s ease-in-out infinite alternate !important;
+}
+
+@keyframes indicatorFlash {
+  0% {
+    opacity: 1;
+    transform: scale(1.15);
+    filter: drop-shadow(0 0 12px currentColor) brightness(1.4);
+  }
+  100% {
+    opacity: 0.1;
+    transform: scale(0.92);
+    filter: brightness(0.35);
+  }
+}
 
 .speedometer {
   display: flex;
@@ -636,8 +700,62 @@ body {
   background: rgba(0, 229, 255, 0.05);
 }
 
-.control-btn--blink {
-  animation: blink 0.7s ease-in-out infinite;
+.control-btn--blink,
+.control-btn--amber-blink {
+  animation: indicatorBlink 0.55s ease-in-out infinite alternate !important;
+}
+
+.control-btn--hazard-blink {
+  animation: hazardBlink 0.55s ease-in-out infinite alternate !important;
+}
+
+@keyframes indicatorBlink {
+  0% {
+    background: rgba(255, 171, 0, 0.45) !important;
+    border-color: #ffab00 !important;
+    color: #ffab00 !important;
+    box-shadow: 0 0 18px rgba(255, 171, 0, 0.9), inset 0 0 10px rgba(255, 171, 0, 0.5) !important;
+    transform: scale(1.05);
+    opacity: 1 !important;
+  }
+  100% {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: rgba(240, 244, 248, 0.25) !important;
+    box-shadow: none !important;
+    transform: scale(0.96);
+    opacity: 0.25 !important;
+  }
+}
+
+@keyframes hazardBlink {
+  0% {
+    background: rgba(255, 23, 68, 0.45) !important;
+    border-color: #ff1744 !important;
+    color: #ff1744 !important;
+    box-shadow: 0 0 20px rgba(255, 23, 68, 0.9), inset 0 0 10px rgba(255, 23, 68, 0.5) !important;
+    transform: scale(1.05);
+    opacity: 1 !important;
+  }
+  100% {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: rgba(240, 244, 248, 0.25) !important;
+    box-shadow: none !important;
+    transform: scale(0.96);
+    opacity: 0.25 !important;
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 10px currentColor);
+  }
+  50% {
+    opacity: 0.15;
+    filter: none;
+  }
 }
 
 .control-btn__icon {
@@ -1563,6 +1681,31 @@ body {
   transform: translateY(-1px);
 }
 
+/* ── Assistant Warning States ──────────────────────────────── */
+
+.voice-assistant__robot-btn--warning {
+  border-color: rgba(255, 23, 68, 0.7) !important;
+  background: linear-gradient(135deg, rgba(45, 10, 18, 0.95) 0%, rgba(20, 8, 14, 0.98) 100%) !important;
+  box-shadow:
+    0 4px 20px rgba(255, 23, 68, 0.4),
+    0 0 16px rgba(255, 23, 68, 0.3) !important;
+  animation: alertPulse 1.2s ease-in-out infinite !important;
+}
+
+.voice-assistant__glow-ring--warning {
+  border-color: rgba(255, 23, 68, 0.9) !important;
+}
+
+.voice-assistant__dot--warning {
+  background: #ff1744 !important;
+  box-shadow: 0 0 10px #ff1744 !important;
+  animation: pulseDot 0.6s infinite alternate !important;
+}
+
+.voice-assistant__waves--warning .wave {
+  background: #ff1744 !important;
+}
+
 /* ── Assistant Keyframes ───────────────────────────────────── */
 
 @keyframes floatRobot {
@@ -1584,6 +1727,17 @@ body {
 @keyframes waveAnim {
   0%, 100% { height: 4px; }
   50% { height: 14px; }
+}
+
+@keyframes alertPulse {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(255, 23, 68, 0.3);
+    border-color: rgba(255, 23, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(255, 23, 68, 0.65);
+    border-color: rgba(255, 23, 68, 0.95);
+  }
 }
 
 

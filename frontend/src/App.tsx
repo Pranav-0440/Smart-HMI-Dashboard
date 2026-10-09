@@ -88,38 +88,59 @@ export default function App() {
 
   // Control handlers
   const handleThrottle = useCallback((v: number) => {
-    wsService.sendCommand("throttle", v);
-    apiPost("/vehicle/throttle", { value: v }).catch(() => {});
+    if (wsService.isConnected) {
+      wsService.sendCommand("throttle", v);
+    } else {
+      apiPost("/vehicle/throttle", { value: v }).catch(() => {});
+    }
   }, []);
 
   const handleBrake = useCallback((v: number) => {
-    wsService.sendCommand("brake", v);
-    apiPost("/vehicle/brake", { value: v }).catch(() => {});
+    if (wsService.isConnected) {
+      wsService.sendCommand("brake", v);
+    } else {
+      apiPost("/vehicle/brake", { value: v }).catch(() => {});
+    }
   }, []);
 
   const handleMode = useCallback((m: DriveMode) => {
-    wsService.sendCommand("mode", m);
-    apiPost("/vehicle/mode", { mode: m }).catch(() => {});
+    if (wsService.isConnected) {
+      wsService.sendCommand("mode", m);
+    } else {
+      apiPost("/vehicle/mode", { mode: m }).catch(() => {});
+    }
   }, []);
 
   const handleSlope = useCallback((v: number) => {
-    wsService.sendCommand("slope", v);
-    apiPost("/vehicle/slope", { value: v }).catch(() => {});
+    if (wsService.isConnected) {
+      wsService.sendCommand("slope", v);
+    } else {
+      apiPost("/vehicle/slope", { value: v }).catch(() => {});
+    }
   }, []);
 
   const handleAmbient = useCallback((v: number) => {
-    wsService.sendCommand("ambient", v);
-    apiPost("/vehicle/ambient", { value: v }).catch(() => {});
+    if (wsService.isConnected) {
+      wsService.sendCommand("ambient", v);
+    } else {
+      apiPost("/vehicle/ambient", { value: v }).catch(() => {});
+    }
   }, []);
 
   const handleControl = useCallback((control: string) => {
-    wsService.sendCommand("control", undefined, { control });
-    apiPost("/vehicle/control", { control }).catch(() => {});
+    if (wsService.isConnected) {
+      wsService.sendCommand("control", undefined, { control });
+    } else {
+      apiPost("/vehicle/control", { control }).catch(() => {});
+    }
   }, []);
 
   const handleReset = useCallback(() => {
-    wsService.sendCommand("reset");
-    apiPost("/vehicle/reset", { soc: 80, ambientTemp: 25 }).catch(() => {});
+    if (wsService.isConnected) {
+      wsService.sendCommand("reset");
+    } else {
+      apiPost("/vehicle/reset", { soc: 80, ambientTemp: 25 }).catch(() => {});
+    }
   }, []);
 
   const [demoMode, setDemoMode] = useState(false);
