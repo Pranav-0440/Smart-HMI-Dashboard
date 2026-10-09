@@ -1,9 +1,7 @@
 /**
- * Settings Widget & Panel
- * Floating on the right side of the dashboard.
- * Allows driver to toggle between Dark / Light theme,
- * switch SIA voice language between English, Hindi, and Marathi,
- * and adjust voice assistant settings with instant audio preview.
+ * Simple & Clean Settings Panel
+ * Allows driver to toggle between Dark / Light theme
+ * and switch SIA voice assistant language (English, Hindi, Marathi).
  */
 import { useState } from "react";
 import {
@@ -58,13 +56,13 @@ export default function SettingsWidget({
 
   return (
     <div className={`settings-widget ${isOpen ? "settings-widget--open" : ""}`}>
-      {/* Floating Settings Button on Right Side */}
+      {/* Floating Capsule Button on Right Side */}
       <button
         id="settings-toggle-btn"
         className={`settings-widget__btn ${isOpen ? "settings-widget__btn--active" : ""}`}
         onClick={() => setIsOpen(!isOpen)}
-        title="Dashboard & SIA Voice Settings"
-        aria-label="Dashboard Settings"
+        title="Settings"
+        aria-label="Settings"
       >
         <div className="settings-widget__icon-wrap">
           <span className="settings-widget__gear-icon">⚙️</span>
@@ -77,140 +75,101 @@ export default function SettingsWidget({
         </div>
       </button>
 
-      {/* Expandable Settings Modal / Drawer Card */}
+      {/* Clean Simple Settings Panel */}
       {isOpen && (
         <div className="settings-widget__panel">
           <div className="settings-widget__header">
-            <div className="settings-widget__header-title">
-              <span className="settings-widget__badge">Preferences</span>
-              <span>Vehicle & Voice Settings</span>
-            </div>
+            <span className="settings-widget__header-title">⚙️ Settings</span>
             <button
               className="settings-widget__close-btn"
               onClick={() => setIsOpen(false)}
-              title="Close Settings"
+              title="Close"
             >
               ✕
             </button>
           </div>
 
           <div className="settings-widget__body">
-            {/* SECTION 1: DASHBOARD THEME */}
+            {/* 1. THEME */}
             <div className="settings-widget__section">
-              <div className="settings-widget__section-header">
-                <span className="settings-widget__section-icon">🎨</span>
-                <div>
-                  <div className="settings-widget__section-label">Dashboard Theme</div>
-                  <div className="settings-widget__section-desc">Switch between high-contrast light & neon cyber dark mode</div>
-                </div>
-              </div>
-
-              <div className="settings-widget__theme-grid">
+              <div className="settings-widget__section-label">Theme</div>
+              <div className="settings-widget__simple-grid">
                 <button
                   type="button"
-                  className={`settings-widget__theme-card ${
-                    theme === "dark" ? "settings-widget__theme-card--active" : ""
+                  className={`settings-widget__simple-btn ${
+                    theme === "dark" ? "settings-widget__simple-btn--active" : ""
                   }`}
                   onClick={() => onThemeChange("dark")}
                 >
-                  <div className="settings-widget__theme-preview settings-widget__theme-preview--dark">
-                    <span className="preview-dot preview-dot--cyan" />
-                    <span className="preview-bar" />
-                  </div>
-                  <div className="settings-widget__theme-info">
-                    <span className="settings-widget__theme-name">🌙 Dark Mode</span>
-                    <span className="settings-widget__theme-hint">Neon Cockpit (Night)</span>
-                  </div>
-                  {theme === "dark" && <span className="settings-widget__check">✓</span>}
+                  🌙 Dark
                 </button>
-
                 <button
                   type="button"
-                  className={`settings-widget__theme-card ${
-                    theme === "light" ? "settings-widget__theme-card--active" : ""
+                  className={`settings-widget__simple-btn ${
+                    theme === "light" ? "settings-widget__simple-btn--active" : ""
                   }`}
                   onClick={() => onThemeChange("light")}
                 >
-                  <div className="settings-widget__theme-preview settings-widget__theme-preview--light">
-                    <span className="preview-dot preview-dot--blue" />
-                    <span className="preview-bar preview-bar--light" />
-                  </div>
-                  <div className="settings-widget__theme-info">
-                    <span className="settings-widget__theme-name">☀️ Light Mode</span>
-                    <span className="settings-widget__theme-hint">High Contrast (Daytime)</span>
-                  </div>
-                  {theme === "light" && <span className="settings-widget__check">✓</span>}
+                  ☀️ Light
                 </button>
               </div>
             </div>
 
-            {/* SECTION 2: SIA VOICE ASSISTANT LANGUAGE */}
+            {/* 2. LANGUAGE */}
             <div className="settings-widget__section">
-              <div className="settings-widget__section-header">
-                <span className="settings-widget__section-icon">🗣️</span>
-                <div>
-                  <div className="settings-widget__section-label">SIA Copilot Language</div>
-                  <div className="settings-widget__section-desc">
-                    Input recognition & verbal speech output language
-                  </div>
-                </div>
-              </div>
-
-              <div className="settings-widget__lang-grid">
-                {(["en", "hi", "mr"] as AssistantLanguage[]).map((l) => {
-                  const meta = LANGUAGE_CONFIG[l];
-                  const isActive = language === l;
-                  return (
-                    <button
-                      key={l}
-                      type="button"
-                      className={`settings-widget__lang-card ${
-                        isActive ? "settings-widget__lang-card--active" : ""
-                      }`}
-                      onClick={() => onLanguageChange(l)}
-                    >
-                      <div className="settings-widget__lang-top">
-                        <span className="settings-widget__lang-flag">{meta.flag}</span>
-                        <span className="settings-widget__lang-code">{l.toUpperCase()}</span>
-                      </div>
-                      <div className="settings-widget__lang-native">{meta.nativeName}</div>
-                      <div className="settings-widget__lang-en">{meta.name}</div>
-                      <div className="settings-widget__lang-desc">
-                        {l === "en"
-                          ? "Siri Voice • English / Hinglish"
-                          : l === "hi"
-                          ? "हिन्दी आवाज़ • बोलें और सुनें"
-                          : "मराठी आवाज़ • बोला आणि ऐका"}
-                      </div>
-                      {isActive && <span className="settings-widget__check">✓ Active</span>}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Live Preview Test Button */}
-              <div className="settings-widget__preview-row">
+              <div className="settings-widget__section-label">Language</div>
+              <div className="settings-widget__simple-grid settings-widget__simple-grid--3">
                 <button
                   type="button"
-                  className={`settings-widget__preview-btn ${
-                    previewPlaying ? "settings-widget__preview-btn--playing" : ""
+                  className={`settings-widget__simple-btn ${
+                    language === "en" ? "settings-widget__simple-btn--active" : ""
                   }`}
-                  onClick={handleTestVoice}
-                  disabled={previewPlaying}
+                  onClick={() => onLanguageChange("en")}
                 >
-                  {previewPlaying ? "🔊 Playing Voice Sample..." : `▶️ Test ${currentLangMeta.nativeName} Voice`}
+                  🇬🇧 English
                 </button>
                 <button
                   type="button"
-                  className={`settings-widget__mute-toggle ${
-                    voiceEnabled ? "settings-widget__mute-toggle--on" : ""
+                  className={`settings-widget__simple-btn ${
+                    language === "hi" ? "settings-widget__simple-btn--active" : ""
                   }`}
-                  onClick={() => onVoiceToggle(!voiceEnabled)}
-                  title={voiceEnabled ? "Mute Voice Output" : "Enable Voice Output"}
+                  onClick={() => onLanguageChange("hi")}
                 >
-                  {voiceEnabled ? "🔊 Voice On" : "🔇 Voice Muted"}
+                  🇮🇳 हिन्दी
+                </button>
+                <button
+                  type="button"
+                  className={`settings-widget__simple-btn ${
+                    language === "mr" ? "settings-widget__simple-btn--active" : ""
+                  }`}
+                  onClick={() => onLanguageChange("mr")}
+                >
+                  🇮🇳 मराठी
                 </button>
               </div>
+            </div>
+
+            {/* 3. TEST VOICE & MUTE */}
+            <div className="settings-widget__preview-row">
+              <button
+                type="button"
+                className={`settings-widget__preview-btn ${
+                  previewPlaying ? "settings-widget__preview-btn--playing" : ""
+                }`}
+                onClick={handleTestVoice}
+                disabled={previewPlaying}
+              >
+                {previewPlaying ? "🔊 Playing..." : "▶️ Test Voice"}
+              </button>
+              <button
+                type="button"
+                className={`settings-widget__mute-toggle ${
+                  voiceEnabled ? "settings-widget__mute-toggle--on" : ""
+                }`}
+                onClick={() => onVoiceToggle(!voiceEnabled)}
+              >
+                {voiceEnabled ? "🔊 Voice On" : "🔇 Muted"}
+              </button>
             </div>
           </div>
         </div>
