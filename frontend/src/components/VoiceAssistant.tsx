@@ -1,9 +1,7 @@
 /**
  * 3D AI Robot Voice Assistant Component
  * Floating on the left side of the dashboard.
- * When turned on, greets the driver verbally ("Hello! I'm your EV copilot, I'm listening..."),
- * continuously listens for multiple voice commands without turning off automatically,
- * and immediately executes requested vehicle actions.
+ * Supports multilingual voice control in English, Hindi (हिन्दी), and Marathi (मराठी).
  */
 import { useState, useEffect, useRef, useCallback } from "react";
 import type { VehicleState, DriveMode } from "../types/vehicle";
@@ -11,6 +9,8 @@ import {
   processVoiceCommand,
   speakResponse,
   formatWarningForSpeech,
+  LANGUAGE_CONFIG,
+  type AssistantLanguage,
   type VoiceAssistantActions,
 } from "../services/voiceAssistant";
 
@@ -22,22 +22,11 @@ interface VoiceAssistantProps {
   onBrake: (v: number) => void;
   onSlope: (v: number) => void;
   onReset: () => void;
+  language?: AssistantLanguage;
+  onLanguageChange?: (lang: AssistantLanguage) => void;
+  voiceEnabled?: boolean;
+  onVoiceToggle?: (enabled: boolean) => void;
 }
-
-// Quick voice suggestions for user inspiration or instant click testing
-const SUGGESTIONS = [
-  "Turn on left indicator",
-  "Turn on headlights",
-  "Switch to Sport mode",
-  "Turn on hazard lights",
-  "Check warnings",
-  "What is my battery?",
-  "What is my speed?",
-  "Accelerate",
-  "Slow down",
-];
-
-const GREETING_TEXT = "Hello! I am your EV copilot. I am listening, tell me what you want me to do!";
 
 type SpeechRecognitionType = any;
 
@@ -49,15 +38,26 @@ export default function VoiceAssistant({
   onBrake,
   onSlope,
   onReset,
+  language: propLanguage,
+  onLanguageChange: propOnLanguageChange,
+  voiceEnabled: propVoiceEnabled,
+  onVoiceToggle: propOnVoiceToggle,
 }: VoiceAssistantProps) {
+  const [internalLanguage, setInternalLanguage] = useState<AssistantLanguage>("en");
+  const [internalVoiceEnabled, setInternalVoiceEnabled] = useState(true);
+
+  const language = propLanguage !== undefined ? propLanguage : internalLanguage;
+  const voiceEnabled = propVoiceEnabled !== undefined ? propVoiceEnabled : internalVoiceEnabled;
+
   const [isOpen, setIsOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState("");
-  const [assistantReply, setAssistantReply] = useState<string>(GREETING_TEXT);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [assistantReply, setAssistantReply] = useState<string>(LANGUAGE_CONFIG[language].greeting);
 
+  const languageRef = useRef<AssistantLanguage>(language);
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
   const keepListeningRef = useRef<boolean>(false);
+  const isGreetingPlayingRef = useRef<boolean>(false);
   const isSpeakingRef = useRef<boolean>(false);
   const restartTimerRef = useRef<number | null>(null);
   const clearTranscriptTimerRef = useRef<number | null>(null);
@@ -73,6 +73,7 @@ export default function VoiceAssistant({
   const prevWarningsKeyRef = useRef<string>("");
   const hadWarningsRef = useRef<boolean>(false);
 
+  languageRef.current = language;
   warningsRef.current = state.warnings || [];
   voiceEnabledRef.current = voiceEnabled;
 
@@ -111,7 +112,7 @@ export default function VoiceAssistant({
         "accelerate", "brake", "hazard", "speed",
         "what is my", "battery", "range", "temperature",
         "mute", "silence", "quiet", "stop talking", "shut up",
-        "door", "seatbelt", "reset"
+        "door", "seatbelt", "reset", "चालू", "बंद", "इंडिकेटर", "हेडलाइट"
       ];
       return distinctKeywords.some((kw) => text.includes(kw));
     };
@@ -138,9 +139,9 @@ export default function VoiceAssistant({
     return overlap >= 0.4;
   }, []);
 
-  // Continuous Full-Duplex Speech Recognition instance
+  // Continuous Speech Recognition instance configured with selected language
   const createAndStartRecognition = useCallback(() => {
-    if (!keepListeningRef.current || typeof window === "undefined") return;
+    if (!keepListeningRef.current || isGreetingPlayingRef.current || typeof window === "undefined") return;
 
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
@@ -163,10 +164,17 @@ export default function VoiceAssistant({
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = "en-US";
+    // Set locale based on chosen language (en-IN / hi-IN / mr-IN)
+    recognition.lang = LANGUAGE_CONFIG[languageRef.current].recognitionLang;
     recognition.maxAlternatives = 1;
 
     recognition.onresult = (event: any) => {
+      if (isGreetingPlayingRef.current) {
+        accumulatedSpeechRef.current = "";
+        setTranscript("");
+        return;
+      }
+
       let currentInterim = "";
       let currentFinal = "";
 
@@ -219,7 +227,7 @@ export default function VoiceAssistant({
       if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
       speechDebounceTimerRef.current = window.setTimeout(() => {
         const fullPhrase = accumulatedSpeechRef.current.trim();
-        if (fullPhrase && fullPhrase.length >= 3) {
+        if (fullPhrase && fullPhrase.length >= 2) {
           accumulatedSpeechRef.current = "";
           if (!isDeviceAudioEcho(fullPhrase)) {
             handleExecuteCommandRef.current(fullPhrase, false);
@@ -231,18 +239,21 @@ export default function VoiceAssistant({
     recognition.onerror = (event: any) => {
       if (event.error === "not-allowed") {
         keepListeningRef.current = false;
+        isGreetingPlayingRef.current = false;
         setIsOpen(false);
         setAssistantReply("Microphone access denied. Please allow microphone permission in your browser.");
         return;
       }
-      if (keepListeningRef.current) {
+      if (keepListeningRef.current && !isGreetingPlayingRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         restartTimerRef.current = window.setTimeout(createAndStartRecognition, 200);
       }
     };
 
     recognition.onend = () => {
-      if (accumulatedSpeechRef.current.trim().length >= 3) {
+      if (isGreetingPlayingRef.current) return;
+
+      if (accumulatedSpeechRef.current.trim().length >= 2) {
         const fullPhrase = accumulatedSpeechRef.current.trim();
         accumulatedSpeechRef.current = "";
         if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
@@ -251,7 +262,7 @@ export default function VoiceAssistant({
         }
       }
 
-      if (keepListeningRef.current) {
+      if (keepListeningRef.current && !isGreetingPlayingRef.current) {
         if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
         restartTimerRef.current = window.setTimeout(createAndStartRecognition, 100);
       }
@@ -268,9 +279,19 @@ export default function VoiceAssistant({
     }
   }, [isDeviceAudioEcho]);
 
-  // Execute and process command
+  // Execute and process command in active language
   const handleExecuteCommand = useCallback(
     (commandText: string, isManual: boolean = false) => {
+      const currentLang = languageRef.current;
+      const result = processVoiceCommand(commandText, state, actions, isManual, currentLang);
+
+      // If missing the mandatory wake word, skip input silently
+      if (result.skipped) {
+        console.debug("[VoiceAssistant] Skipping input without wake word:", commandText);
+        setTranscript("");
+        return;
+      }
+
       try {
         window.speechSynthesis?.cancel();
       } catch {}
@@ -286,7 +307,6 @@ export default function VoiceAssistant({
       }
 
       setTranscript(`"${commandText}"`);
-      const result = processVoiceCommand(commandText, state, actions);
       setAssistantReply(result.response);
 
       if (result.matched || isManual) {
@@ -305,7 +325,8 @@ export default function VoiceAssistant({
           () => {
             isSpeakingRef.current = true;
             setIsSpeaking(true);
-          }
+          },
+          currentLang
         );
       }
 
@@ -319,10 +340,59 @@ export default function VoiceAssistant({
 
   handleExecuteCommandRef.current = handleExecuteCommand;
 
+  // Language Switch Handler
+  const handleLanguageChange = (newLang: AssistantLanguage) => {
+    if (newLang === language) return;
+    if (propOnLanguageChange) {
+      propOnLanguageChange(newLang);
+    } else {
+      setInternalLanguage(newLang);
+    }
+    languageRef.current = newLang;
+    const newGreeting = LANGUAGE_CONFIG[newLang].greeting;
+    setAssistantReply(newGreeting);
+
+    // Restart speech recognition with new language acoustic model
+    if (keepListeningRef.current && !isGreetingPlayingRef.current) {
+      try {
+        recognitionRef.current?.abort();
+      } catch {}
+      setTimeout(() => {
+        if (keepListeningRef.current) {
+          createAndStartRecognition();
+        }
+      }, 150);
+    }
+
+    if (voiceEnabled) {
+      speakResponse(newGreeting, true, undefined, undefined, newLang);
+    }
+  };
+
+  // Sync external language changes from SettingsWidget
+  useEffect(() => {
+    if (propLanguage && propLanguage !== languageRef.current) {
+      languageRef.current = propLanguage;
+      const newGreeting = LANGUAGE_CONFIG[propLanguage].greeting;
+      setAssistantReply(newGreeting);
+
+      if (keepListeningRef.current && !isGreetingPlayingRef.current) {
+        try {
+          recognitionRef.current?.abort();
+        } catch {}
+        setTimeout(() => {
+          if (keepListeningRef.current) {
+            createAndStartRecognition();
+          }
+        }, 150);
+      }
+    }
+  }, [propLanguage, createAndStartRecognition]);
+
   // Watchdog timer: keep continuous recognition alive
   useEffect(() => {
     const watchdog = setInterval(() => {
-      if (keepListeningRef.current) {
+      if (keepListeningRef.current && !isGreetingPlayingRef.current) {
         try {
           if (!recognitionRef.current) {
             createAndStartRecognition();
@@ -357,12 +427,13 @@ export default function VoiceAssistant({
     }
 
     // If currently speaking a command or greeting, wait and check again shortly
-    if (isSpeakingRef.current || (typeof window !== "undefined" && window.speechSynthesis?.speaking)) {
+    if (isSpeakingRef.current || isGreetingPlayingRef.current || (typeof window !== "undefined" && window.speechSynthesis?.speaking)) {
       warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 500);
       return;
     }
 
-    const spokenText = currentWarnings.map(formatWarningForSpeech).join(" ");
+    const currentLang = languageRef.current;
+    const spokenText = currentWarnings.map((w) => formatWarningForSpeech(w, currentLang)).join(" ");
     setAssistantReply(`🚨 ${spokenText}`);
 
     if (voiceEnabledRef.current) {
@@ -389,10 +460,10 @@ export default function VoiceAssistant({
         () => {
           isSpeakingRef.current = true;
           setIsSpeaking(true);
-        }
+        },
+        currentLang
       );
     } else {
-      // Voice muted in UI settings, re-check in 2s
       if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
       warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 2000);
     }
@@ -409,20 +480,26 @@ export default function VoiceAssistant({
       }
       if (hadWarningsRef.current) {
         hadWarningsRef.current = false;
-        setAssistantReply("✅ All warnings cleared. System status normal.");
+        const clearedMsg =
+          languageRef.current === "hi"
+            ? "✅ सभी चेतावनियाँ हट गईं। सिस्टम सामान्य है।"
+            : languageRef.current === "mr"
+            ? "✅ सर्व चेतावण्या साफ झाल्या. यंत्रणा सुरळीत आहे."
+            : "✅ All warnings cleared. System status normal.";
+
+        setAssistantReply(clearedMsg);
         if (voiceEnabledRef.current) {
-          speakResponse("All warnings cleared. System status normal.", true);
+          speakResponse(clearedMsg, true, undefined, undefined, languageRef.current);
         }
       }
       return;
     }
 
     hadWarningsRef.current = true;
-    const spokenText = (state.warnings || []).map(formatWarningForSpeech).join(" ");
+    const spokenText = (state.warnings || []).map((w) => formatWarningForSpeech(w, languageRef.current)).join(" ");
     setAssistantReply(`🚨 ${spokenText}`);
 
-    // If loop isn't active, kick off immediately
-    if (!warningRepeatTimerRef.current && !isSpeakingRef.current) {
+    if (!warningRepeatTimerRef.current && !isSpeakingRef.current && !isGreetingPlayingRef.current) {
       warningRepeatTimerRef.current = window.setTimeout(announceWarningsLoop, 100);
     }
   }, [warningsKey, announceWarningsLoop]);
@@ -431,6 +508,7 @@ export default function VoiceAssistant({
   useEffect(() => {
     return () => {
       keepListeningRef.current = false;
+      isGreetingPlayingRef.current = false;
       isSpeakingRef.current = false;
       if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
       if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
@@ -445,13 +523,15 @@ export default function VoiceAssistant({
 
   // Turn on/off Assistant
   const handleToggleAssistant = () => {
-    if (isOpen && keepListeningRef.current) {
+    if (isOpen && (keepListeningRef.current || isGreetingPlayingRef.current)) {
       // User explicitly wants to turn off assistant
       keepListeningRef.current = false;
+      isGreetingPlayingRef.current = false;
       isSpeakingRef.current = false;
       setIsOpen(false);
       setIsSpeaking(false);
       accumulatedSpeechRef.current = "";
+      setTranscript("");
       if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
       if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
@@ -462,49 +542,75 @@ export default function VoiceAssistant({
       return;
     }
 
-    // Turn ON assistant: keep listening continuously!
-    keepListeningRef.current = true;
+    // Turn ON assistant:
+    const greeting = LANGUAGE_CONFIG[language].greeting;
     setIsOpen(true);
     setTranscript("");
     accumulatedSpeechRef.current = "";
-    setAssistantReply(GREETING_TEXT);
+    setAssistantReply(greeting);
 
-    // Speak initial greeting, then start speech recognition cleanly!
+    keepListeningRef.current = false;
+    isGreetingPlayingRef.current = true;
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.onend = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.abort();
+      }
+    } catch {}
+
     if (voiceEnabled) {
       isSpeakingRef.current = true;
       setIsSpeaking(true);
-      try {
-        recognitionRef.current?.abort();
-      } catch {}
+      currentTTSUtteranceTextRef.current = greeting.toLowerCase();
+
+      let greetingFinished = false;
+      const startListeningNow = () => {
+        if (greetingFinished) return;
+        greetingFinished = true;
+        isSpeakingRef.current = false;
+        setIsSpeaking(false);
+        isGreetingPlayingRef.current = false;
+        currentTTSUtteranceTextRef.current = "";
+        setTranscript("");
+        accumulatedSpeechRef.current = "";
+
+        setTimeout(() => {
+          keepListeningRef.current = true;
+          createAndStartRecognition();
+        }, 120);
+      };
 
       speakResponse(
-        GREETING_TEXT,
+        greeting,
         true,
-        () => {
-          setTimeout(() => {
-            isSpeakingRef.current = false;
-            setIsSpeaking(false);
-            if (keepListeningRef.current) {
-              createAndStartRecognition();
-            }
-          }, 300);
-        },
+        startListeningNow,
         () => {
           isSpeakingRef.current = true;
           setIsSpeaking(true);
-        }
+          isGreetingPlayingRef.current = true;
+        },
+        language
       );
+
+      // Safety fallback: if speech ends silently or is delayed, ensure listening starts
+      setTimeout(startListeningNow, 2200);
     } else {
+      isGreetingPlayingRef.current = false;
+      keepListeningRef.current = true;
       createAndStartRecognition();
     }
   };
 
   const handleClosePanel = () => {
     keepListeningRef.current = false;
+    isGreetingPlayingRef.current = false;
     isSpeakingRef.current = false;
     setIsOpen(false);
     setIsSpeaking(false);
     accumulatedSpeechRef.current = "";
+    setTranscript("");
     if (warningRepeatTimerRef.current) clearTimeout(warningRepeatTimerRef.current);
     if (speechDebounceTimerRef.current) clearTimeout(speechDebounceTimerRef.current);
     if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
@@ -515,6 +621,7 @@ export default function VoiceAssistant({
   };
 
   const hasWarnings = Boolean(state.warnings && state.warnings.length > 0);
+  const currentLangConfig = LANGUAGE_CONFIG[language];
 
   return (
     <div className={`voice-assistant voice-assistant--left ${isOpen ? "voice-assistant--open" : ""}`}>
@@ -527,15 +634,15 @@ export default function VoiceAssistant({
         onClick={handleToggleAssistant}
         title={
           isOpen
-            ? "EV Copilot Listening Continuously (Click to turn off)"
-            : "3D EV Copilot Voice Assistant — Click to speak"
+            ? `${currentLangConfig.name} SIA Copilot Listening (Click to turn off)`
+            : `3D SIA AI Voice Assistant — Click to speak`
         }
-        aria-label="3D EV Voice Assistant"
+        aria-label="3D SIA Voice Assistant"
       >
         <div className="voice-assistant__avatar-container">
           <img
             src="/ai_robot.png"
-            alt="3D AI Assistant"
+            alt="3D AI Assistant SIA"
             className="voice-assistant__robot-img"
           />
           {(isOpen || hasWarnings) && (
@@ -558,7 +665,7 @@ export default function VoiceAssistant({
                   : ""
               }`}
             />
-            <span className="voice-assistant__name">EV Copilot</span>
+            <span className="voice-assistant__name">SIA Copilot</span>
           </div>
           <span className="voice-assistant__callout">
             {hasWarnings
@@ -566,7 +673,7 @@ export default function VoiceAssistant({
               : isSpeaking
               ? "Speaking... 🔊"
               : isOpen
-              ? "Listening continuously 🎙️"
+              ? `${currentLangConfig.nativeName} Listening 🎙️`
               : "Tap to activate 🎙️"}
           </span>
         </div>
@@ -591,12 +698,31 @@ export default function VoiceAssistant({
           <div className="voice-assistant__header">
             <div className="voice-assistant__title">
               <span className="voice-assistant__badge">Always Listening</span>
-              <span>Voice Control</span>
+              <span>SIA Control</span>
             </div>
+
             <div className="voice-assistant__actions">
+              {/* Language Switcher: English, Hindi, Marathi */}
+              <div className="voice-assistant__lang-switcher">
+                {(["en", "hi", "mr"] as AssistantLanguage[]).map((l) => (
+                  <button
+                    key={l}
+                    className={`voice-assistant__lang-btn ${
+                      language === l ? "voice-assistant__lang-btn--active" : ""
+                    }`}
+                    onClick={() => handleLanguageChange(l)}
+                    title={`Switch to ${LANGUAGE_CONFIG[l].name} (${LANGUAGE_CONFIG[l].nativeName})`}
+                  >
+                    {l === "en" ? "EN" : l === "hi" ? "हिन्दी" : "मराठी"}
+                  </button>
+                ))}
+              </div>
+
               <button
                 className={`voice-assistant__btn-icon ${voiceEnabled ? "voice-assistant__btn-icon--active" : ""}`}
-                onClick={() => setVoiceEnabled(!voiceEnabled)}
+                onClick={() =>
+                  propOnVoiceToggle ? propOnVoiceToggle(!voiceEnabled) : setInternalVoiceEnabled(!voiceEnabled)
+                }
                 title={voiceEnabled ? "Mute Voice Audio" : "Enable Voice Audio"}
               >
                 {voiceEnabled ? "🔊" : "🔇"}
@@ -630,11 +756,17 @@ export default function VoiceAssistant({
             )}
           </div>
 
-          {/* Quick Voice Suggestions */}
+          {/* Quick Voice Suggestions in Selected Language */}
           <div className="voice-assistant__footer">
-            <div className="voice-assistant__suggestions-title">Say anytime or tap:</div>
+            <div className="voice-assistant__suggestions-title">
+              {language === "hi"
+                ? "कभी भी बोलें या टैप करें:"
+                : language === "mr"
+                ? "कधीही बोला किंवा टॅप करा:"
+                : "Say anytime or tap:"}
+            </div>
             <div className="voice-assistant__chips">
-              {SUGGESTIONS.map((cmd) => (
+              {currentLangConfig.suggestions.map((cmd) => (
                 <button
                   key={cmd}
                   className="voice-assistant__chip"

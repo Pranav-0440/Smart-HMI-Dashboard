@@ -13,6 +13,8 @@ import VehicleControls from "../components/VehicleControls";
 import Alerts from "../components/Alerts";
 import SimControl from "../components/SimControl";
 import VoiceAssistant from "../components/VoiceAssistant";
+import SettingsWidget, { type DashboardTheme } from "../components/SettingsWidget";
+import type { AssistantLanguage } from "../services/voiceAssistant";
 
 interface BikeDashboardProps {
   state: VehicleState;
@@ -24,6 +26,12 @@ interface BikeDashboardProps {
   onAmbient: (v: number) => void;
   onControl: (c: string) => void;
   onReset: () => void;
+  theme?: DashboardTheme;
+  onThemeChange?: (t: DashboardTheme) => void;
+  language?: AssistantLanguage;
+  onLanguageChange?: (l: AssistantLanguage) => void;
+  voiceEnabled?: boolean;
+  onVoiceToggle?: (v: boolean) => void;
 }
 
 export default function BikeDashboard({
@@ -36,6 +44,12 @@ export default function BikeDashboard({
   onAmbient,
   onControl,
   onReset,
+  theme = "dark",
+  onThemeChange = () => {},
+  language = "en",
+  onLanguageChange = () => {},
+  voiceEnabled = true,
+  onVoiceToggle = () => {},
 }: BikeDashboardProps) {
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now
@@ -86,6 +100,10 @@ export default function BikeDashboard({
             onBrake={onBrake}
             onSlope={onSlope}
             onReset={onReset}
+            language={language}
+            onLanguageChange={onLanguageChange}
+            voiceEnabled={voiceEnabled}
+            onVoiceToggle={onVoiceToggle}
           />
         </div>
 
@@ -104,7 +122,7 @@ export default function BikeDashboard({
           />
         </div>
 
-        {/* Right column: Motor */}
+        {/* Right column: Motor + Settings */}
         <div className="dashboard__right">
           <MotorStats
             rpm={state.motorRpm}
@@ -113,6 +131,14 @@ export default function BikeDashboard({
             power={state.motorPower}
             temperature={state.motorTemperature}
             maxTemp={120}
+          />
+          <SettingsWidget
+            theme={theme}
+            onThemeChange={onThemeChange}
+            language={language}
+            onLanguageChange={onLanguageChange}
+            voiceEnabled={voiceEnabled}
+            onVoiceToggle={onVoiceToggle}
           />
         </div>
       </div>

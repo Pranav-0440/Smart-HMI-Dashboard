@@ -8,6 +8,8 @@ import { wsService, apiPost } from "./services/websocket";
 import VehicleSelection from "./pages/VehicleSelection";
 import BikeDashboard from "./pages/BikeDashboard";
 import CarDashboard from "./pages/CarDashboard";
+import type { DashboardTheme } from "./components/SettingsWidget";
+import type { AssistantLanguage } from "./services/voiceAssistant";
 
 // Default state for initial render
 const DEFAULT_STATE: VehicleState = {
@@ -54,6 +56,65 @@ export default function App() {
   const [page, setPage] = useState<Page>("selection");
   const [state, setState] = useState<VehicleState>(DEFAULT_STATE);
   const [connected, setConnected] = useState(false);
+
+  // Global Theme & Voice Settings State (Persisted)
+  const [theme, setTheme] = useState<DashboardTheme>(() => {
+    try {
+      return (localStorage.getItem("ev_hmi_theme") as DashboardTheme) || "dark";
+    } catch {
+      return "dark";
+    }
+  });
+
+  const [language, setLanguage] = useState<AssistantLanguage>(() => {
+    try {
+      return (localStorage.getItem("ev_hmi_lang") as AssistantLanguage) || "en";
+    } catch {
+      return "en";
+    }
+  });
+
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("ev_hmi_voice_enabled");
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const handleThemeChange = useCallback((newTheme: DashboardTheme) => {
+    setTheme(newTheme);
+    try {
+      localStorage.setItem("ev_hmi_theme", newTheme);
+    } catch {}
+  }, []);
+
+  const handleLanguageChange = useCallback((newLang: AssistantLanguage) => {
+    setLanguage(newLang);
+    try {
+      localStorage.setItem("ev_hmi_lang", newLang);
+    } catch {}
+  }, []);
+
+  const handleVoiceToggle = useCallback((enabled: boolean) => {
+    setVoiceEnabled(enabled);
+    try {
+      localStorage.setItem("ev_hmi_voice_enabled", String(enabled));
+    } catch {}
+  }, []);
+
+  // Synchronize theme attribute on root/body for global CSS variables
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    if (theme === "light") {
+      document.body.classList.add("theme-light");
+      document.body.classList.remove("theme-dark");
+    } else {
+      document.body.classList.add("theme-dark");
+      document.body.classList.remove("theme-light");
+    }
+  }, [theme]);
 
   // Connect WebSocket on mount
   useEffect(() => {
@@ -193,6 +254,12 @@ export default function App() {
           onAmbient={handleAmbient}
           onControl={handleControl}
           onReset={handleReset}
+          theme={theme}
+          onThemeChange={handleThemeChange}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          voiceEnabled={voiceEnabled}
+          onVoiceToggle={handleVoiceToggle}
         />
       )}
       {page === "car" && (
@@ -206,6 +273,12 @@ export default function App() {
           onAmbient={handleAmbient}
           onControl={handleControl}
           onReset={handleReset}
+          theme={theme}
+          onThemeChange={handleThemeChange}
+          language={language}
+          onLanguageChange={handleLanguageChange}
+          voiceEnabled={voiceEnabled}
+          onVoiceToggle={handleVoiceToggle}
         />
       )}
     </>

@@ -13,6 +13,8 @@ import VehicleControls from "../components/VehicleControls";
 import Alerts from "../components/Alerts";
 import SimControl from "../components/SimControl";
 import VoiceAssistant from "../components/VoiceAssistant";
+import SettingsWidget, { type DashboardTheme } from "../components/SettingsWidget";
+import type { AssistantLanguage } from "../services/voiceAssistant";
 
 interface CarDashboardProps {
   state: VehicleState;
@@ -24,6 +26,12 @@ interface CarDashboardProps {
   onAmbient: (v: number) => void;
   onControl: (c: string) => void;
   onReset: () => void;
+  theme?: DashboardTheme;
+  onThemeChange?: (t: DashboardTheme) => void;
+  language?: AssistantLanguage;
+  onLanguageChange?: (l: AssistantLanguage) => void;
+  voiceEnabled?: boolean;
+  onVoiceToggle?: (v: boolean) => void;
 }
 
 export default function CarDashboard({
@@ -36,6 +44,12 @@ export default function CarDashboard({
   onAmbient,
   onControl,
   onReset,
+  theme = "dark",
+  onThemeChange = () => {},
+  language = "en",
+  onLanguageChange = () => {},
+  voiceEnabled = true,
+  onVoiceToggle = () => {},
 }: CarDashboardProps) {
   const now = new Date();
   const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now
@@ -86,6 +100,10 @@ export default function CarDashboard({
             onBrake={onBrake}
             onSlope={onSlope}
             onReset={onReset}
+            language={language}
+            onLanguageChange={onLanguageChange}
+            voiceEnabled={voiceEnabled}
+            onVoiceToggle={onVoiceToggle}
           />
         </div>
 
@@ -105,7 +123,7 @@ export default function CarDashboard({
           />
         </div>
 
-        {/* Right: Motor + Car-specific */}
+        {/* Right: Motor + Car-specific + Settings */}
         <div className="dashboard__right dashboard__right--car">
           <MotorStats
             rpm={state.motorRpm}
@@ -141,6 +159,15 @@ export default function CarDashboard({
               </span>
             </div>
           </div>
+
+          <SettingsWidget
+            theme={theme}
+            onThemeChange={onThemeChange}
+            language={language}
+            onLanguageChange={onLanguageChange}
+            voiceEnabled={voiceEnabled}
+            onVoiceToggle={onVoiceToggle}
+          />
         </div>
       </div>
 
