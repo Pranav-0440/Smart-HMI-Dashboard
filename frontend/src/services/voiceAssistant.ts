@@ -338,9 +338,75 @@ export function processVoiceCommand(
     };
   }
 
+  // ── WARNINGS & SAFETY STATUS QUERY ──
+  if (
+    text.includes("warning") ||
+    text.includes("alert") ||
+    text.includes("issue") ||
+    text.includes("problem") ||
+    text.includes("health") ||
+    text.includes("safety") ||
+    text.includes("error") ||
+    text.includes("check vehicle") ||
+    text.includes("status check")
+  ) {
+    if (state.warnings && state.warnings.length > 0) {
+      const spokenList = state.warnings.map(formatWarningForSpeech).join(" ");
+      return {
+        matched: true,
+        actionName: "query_warnings",
+        response: `Active vehicle alerts: ${spokenList}`,
+      };
+    } else {
+      return {
+        matched: true,
+        actionName: "query_warnings",
+        response: "All vehicle systems are functioning normally. There are no active warnings.",
+      };
+    }
+  }
+
   // ── FALLBACK / UNRECOGNIZED ──
   return {
     matched: false,
-    response: `I heard "${rawTranscript}", but I didn't recognize that command. Try saying "Turn on left indicator", "Switch to Sport mode", or "What's my battery?".`,
+    response: `I heard "${rawTranscript}", but I didn't recognize that command. Try saying "Turn on left indicator", "Switch to Sport mode", or "Check warnings".`,
   };
+}
+
+/**
+ * Converts a raw vehicle warning message into a natural, spoken audio announcement.
+ */
+export function formatWarningForSpeech(rawWarning: string): string {
+  const upper = rawWarning.toUpperCase();
+  if (upper.includes("SIDE STAND DOWN")) {
+    return "Warning! Side stand is down while the vehicle is in motion. Please raise the side stand immediately.";
+  }
+  if (upper.includes("BATTERY CRITICALLY LOW")) {
+    return "Critical Alert! Battery is critically low. Please recharge immediately.";
+  }
+  if (upper.includes("LOW BATTERY")) {
+    return "Caution: Battery level is running low. Please plan to recharge soon.";
+  }
+  if (upper.includes("BATTERY OVERHEATING")) {
+    return "Danger! Battery is overheating. Please stop to allow cooling.";
+  }
+  if (upper.includes("MOTOR OVERHEATING")) {
+    return "Danger! Motor temperature is dangerously high. Please reduce speed.";
+  }
+  if (upper.includes("OVERSPEED")) {
+    return "Warning! Speed limit exceeded. Please reduce your speed.";
+  }
+  if (upper.includes("SEAT BELT")) {
+    return "Safety Warning! Seat belt is not fastened. Please buckle up.";
+  }
+  if (upper.includes("DOORS UNLOCKED")) {
+    return "Notice: Vehicle doors are currently unlocked.";
+  }
+  if (upper.includes("HELMET")) {
+    return "Safety Warning! Helmet not detected. Please wear a helmet.";
+  }
+  if (upper.includes("PARKING BRAKE")) {
+    return "Warning! Parking brake is engaged while driving.";
+  }
+  return `Warning: ${rawWarning.replace(/^(CRITICAL:|DANGER:|WARNING:)\s*/i, "")}.`;
 }

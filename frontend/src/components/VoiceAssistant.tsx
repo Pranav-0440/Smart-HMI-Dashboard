@@ -10,6 +10,7 @@ import type { VehicleState, DriveMode } from "../types/vehicle";
 import {
   processVoiceCommand,
   speakResponse,
+  formatWarningForSpeech,
   type VoiceAssistantActions,
 } from "../services/voiceAssistant";
 
@@ -29,6 +30,7 @@ const SUGGESTIONS = [
   "Turn on headlights",
   "Switch to Sport mode",
   "Turn on hazard lights",
+  "Check warnings",
   "What is my battery?",
   "What is my speed?",
   "Accelerate",
@@ -60,6 +62,7 @@ export default function VoiceAssistant({
   const restartTimerRef = useRef<number | null>(null);
   const clearTranscriptTimerRef = useRef<number | null>(null);
   const handleExecuteCommandRef = useRef<(cmd: string) => void>(() => {});
+  const lastSpokenWarningsRef = useRef<{ [key: string]: number }>({});
 
   const actions: VoiceAssistantActions = {
     onToggleControl: onControl,
@@ -211,6 +214,52 @@ export default function VoiceAssistant({
 
     return () => clearInterval(watchdog);
   }, [createAndStartRecognition]);
+
+  // Proactive Warning Announcer: Audibly speaks critical vehicle alerts to the driver
+  useEffect(() => {
+    if (!state.warnings || state.warnings.length === 0) {
+      lastSpokenWarningsRef.current = {};
+      return;
+    }
+
+    const now = Date.now();
+    const COOLDOWN_MS = 20000; // 20s cooldown per warning before repeating
+
+    const warningsToAnnounce = state.warnings.filter((w) => {
+      const lastSpoken = lastSpokenWarningsRef.current[w] || 0;
+      return now - lastSpoken > COOLDOWN_MS;
+    });
+
+    if (warningsToAnnounce.length > 0 && !isSpeakingRef.current) {
+      warningsToAnnounce.forEach((w) => {
+        lastSpokenWarningsRef.current[w] = now;
+      });
+
+      const spokenText = warningsToAnnounce.map(formatWarningForSpeech).join(" ");
+      setAssistantReply(`🚨 ${spokenText}`);
+
+      // If voice is enabled and assistant is open or listening, speak warning out loud!
+      if (voiceEnabled && (isOpen || keepListeningRef.current)) {
+        isSpeakingRef.current = true;
+        setIsSpeaking(true);
+        speakResponse(
+          spokenText,
+          true,
+          () => {
+            isSpeakingRef.current = false;
+            setIsSpeaking(false);
+            if (keepListeningRef.current) {
+              createAndStartRecognition();
+            }
+          },
+          () => {
+            isSpeakingRef.current = true;
+            setIsSpeaking(true);
+          }
+        );
+      }
+    }
+  }, [state.warnings, voiceEnabled, isOpen, createAndStartRecognition]);
 
   // Clean up on unmount
   useEffect(() => {
